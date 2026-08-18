@@ -1,158 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../themes/app_colors.dart';
 import '../themes/app_dimensions.dart';
 import '../themes/app_text_styles.dart';
-import 'app_loader.dart';
+import '../utils/responsive.dart';
 
-enum AppButtonVariant { primary, secondary, outline, ghost, danger }
-enum AppButtonSize { small, medium, large }
+enum AppButtonVariant { primary, secondary, outline, danger }
 
 class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
-  final AppButtonVariant variant;
-  final AppButtonSize size;
   final bool isLoading;
-  final bool isFullWidth;
+  final Color? backgroundColor;
+  final Color? textColor;
+  final double? height;
+  final double? width;
+  final double? borderRadius;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
+  final AppButtonVariant variant;
+  final bool isFullWidth;
 
   const AppButton({
     super.key,
     required this.label,
     this.onPressed,
-    this.variant = AppButtonVariant.primary,
-    this.size = AppButtonSize.large,
     this.isLoading = false,
-    this.isFullWidth = true,
+    this.backgroundColor,
+    this.textColor,
+    this.height,
+    this.width,
+    this.borderRadius,
     this.prefixIcon,
     this.suffixIcon,
+    this.variant = AppButtonVariant.primary,
+    this.isFullWidth = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final height = switch (size) {
-      AppButtonSize.small  => AppDimensions.buttonHeightXs,
-      AppButtonSize.medium => AppDimensions.buttonHeightSm,
-      AppButtonSize.large  => AppDimensions.buttonHeight,
-    };
+    Color bg;
+    Color fg;
+    BorderSide? border;
 
-    final textStyle = switch (size) {
-      AppButtonSize.small => AppTextStyles.buttonSmall,
-      _                   => AppTextStyles.button,
-    };
+    switch (variant) {
+      case AppButtonVariant.primary:
+        bg = backgroundColor ?? AppColors.primary;
+        fg = textColor ?? Colors.white;
+        break;
+      case AppButtonVariant.secondary:
+        bg = backgroundColor ?? AppColors.darkSurfaceElevated;
+        fg = textColor ?? AppColors.textPrimary;
+        break;
+      case AppButtonVariant.outline:
+        bg = Colors.transparent;
+        fg = textColor ?? AppColors.primary;
+        border = BorderSide(color: fg, width: 1.5);
+        break;
+      case AppButtonVariant.danger:
+        bg = backgroundColor ?? AppColors.error;
+        fg = textColor ?? Colors.white;
+        break;
+    }
 
     return SizedBox(
-      height: height,
-      width: isFullWidth ? double.infinity : null,
-      child: switch (variant) {
-        AppButtonVariant.primary => _buildElevated(
-            bg: AppColors.primary,
-            fg: AppColors.white,
-            shadow: AppColors.primary.withValues(alpha: 0.24),
-            textStyle: textStyle,
-          ),
-        AppButtonVariant.secondary => _buildElevated(
-            bg: AppColors.darkSurfaceElevated,
-            fg: AppColors.textPrimary,
-            shadow: Colors.transparent,
-            textStyle: textStyle.copyWith(color: AppColors.textPrimary),
-          ),
-        AppButtonVariant.outline => _buildOutline(textStyle: textStyle),
-        AppButtonVariant.ghost => TextButton(
-            onPressed: isLoading ? null : onPressed,
-            child: Text(
-              label,
-              style: textStyle.copyWith(color: AppColors.primary),
-            ),
-          ),
-        AppButtonVariant.danger => _buildElevated(
-            bg: AppColors.error,
-            fg: AppColors.white,
-            shadow: AppColors.error.withValues(alpha: 0.20),
-            textStyle: textStyle,
-          ),
-      },
-    );
-  }
-
-  Widget _buildElevated({
-    required Color bg,
-    required Color fg,
-    required Color shadow,
-    required TextStyle textStyle,
-  }) {
-    final disabled = onPressed == null && !isLoading;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        boxShadow: disabled
-            ? []
-            : [
-                BoxShadow(
-                  color: shadow,
-                  blurRadius: AppDimensions.shadowButtonBlur,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-      ),
+      width: isFullWidth ? (width ?? double.infinity) : width,
+      height: height ?? 48,
       child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
+        onPressed: (isLoading || onPressed == null)
+            ? null
+            : () {
+                HapticFeedback.lightImpact();
+                onPressed!();
+              },
         style: ElevatedButton.styleFrom(
-          backgroundColor: disabled ? AppColors.primaryLight500 : bg,
+          backgroundColor: bg,
+          disabledBackgroundColor: bg.withOpacity(0.5),
           foregroundColor: fg,
-          disabledBackgroundColor: AppColors.primaryLight500,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
           elevation: 0,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingMd),
+          side: border,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(borderRadius ?? AppDimensions.radiusSm),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: AppDimensions.paddingMd),
         ),
-        child: _content(textStyle: textStyle, fg: fg),
+        child: isLoading
+            ? SizedBox(
+                width: Responsive.w(22),
+                height: Responsive.w(22),
+                child: CircularProgressIndicator(
+                  color: fg,
+                  strokeWidth: 2.5,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (prefixIcon != null) ...[
+                    prefixIcon!,
+                    const SizedBox(width: AppDimensions.gapSm),
+                  ],
+                  Text(
+                    label,
+                    style: AppTextStyles.pSmall.copyWith(color: fg),
+                  ),
+                  if (suffixIcon != null) ...[
+                    const SizedBox(width: AppDimensions.gapSm),
+                    suffixIcon!,
+                  ],
+                ],
+              ),
       ),
-    );
-  }
-
-  Widget _buildOutline({required TextStyle textStyle}) {
-    return OutlinedButton(
-      onPressed: isLoading ? null : onPressed,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
-        side: BorderSide(
-          color: onPressed == null
-              ? AppColors.darkBorder
-              : AppColors.primary,
-          width: 1.5,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingMd),
-      ),
-      child: _content(
-        textStyle: textStyle.copyWith(color: AppColors.primary),
-        fg: AppColors.primary,
-      ),
-    );
-  }
-
-  Widget _content({required TextStyle textStyle, required Color fg}) {
-    if (isLoading) return AppLoader.small(color: fg);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (prefixIcon != null) ...[
-          prefixIcon!,
-          const SizedBox(width: AppDimensions.gapSm),
-        ],
-        Text(label, style: textStyle),
-        if (suffixIcon != null) ...[
-          const SizedBox(width: AppDimensions.gapSm),
-          suffixIcon!,
-        ],
-      ],
     );
   }
 }

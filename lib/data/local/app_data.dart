@@ -17,9 +17,9 @@ class AppData {
     vehicleNumber: 'LT22 ABC',
     rating: 4.8,
     totalDeliveries: 247,
-    isActive: true,
+    status: 'active',
     isVerified: true,
-    isOnline: true,
+    availability: 'online',
     walletBalance: 245.00,
     createdAt: DateTime(2024, 3, 15),
   );

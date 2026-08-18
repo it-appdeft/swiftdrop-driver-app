@@ -17,13 +17,73 @@ class EarningsController extends BaseController {
   final transactions      = <TransactionModel>[].obs;
   final hasMoreTx         = false.obs;
 
+  final selectedPeriod    = 'This Week'.obs;
+  final chartData         = <ChartData>[].obs;
+
   static const _txLimit = 20;
   int _txPage = 1;
 
   @override
   void onInit() {
     super.onInit();
+    _loadMockChartData();
+    _loadMockTransactions();
     loadAll();
+  }
+
+  void _loadMockChartData() {
+    chartData.assignAll([
+      ChartData('MON', 40),
+      ChartData('TUE', 50),
+      ChartData('WED', 30),
+      ChartData('THU', 60),
+      ChartData('FRI', 140, isHighlighted: true),
+      ChartData('SAT', 95),
+      ChartData('SUN', 35),
+    ]);
+  }
+
+  void _loadMockTransactions() {
+    final now = DateTime.now();
+    transactions.assignAll([
+      TransactionModel(
+        id: '1',
+        orderId: 'ORD123',
+        amount: 120.00,
+        type: 'payout',
+        isCredit: true,
+        createdAt: now.subtract(const Duration(hours: 2)),
+        note: 'Amount Received',
+      ),
+      TransactionModel(
+        id: '2',
+        orderId: 'ORD124',
+        amount: 160.00,
+        type: 'payout',
+        isCredit: true,
+        createdAt: now.subtract(const Duration(days: 1)),
+        note: 'Amount Received',
+      ),
+      TransactionModel(
+        id: '3',
+        orderId: 'ORD125',
+        amount: 110.00,
+        type: 'payout',
+        isCredit: true,
+        createdAt: now.subtract(const Duration(days: 2)),
+        note: 'Amount Received',
+      ),
+      TransactionModel(
+        id: '4',
+        orderId: 'ORD126',
+        amount: 80.00,
+        type: 'payout',
+        isCredit: true,
+        createdAt: now.subtract(const Duration(days: 3)),
+        note: 'Amount Received',
+      ),
+    ]);
+    totalBalance.value = 684.60;
   }
 
   Future<void> loadAll() async {
@@ -67,4 +127,12 @@ class EarningsController extends BaseController {
       hideLoadingMore();
     }
   }
+}
+
+class ChartData {
+  final String day;
+  final double amount;
+  final bool isHighlighted;
+
+  ChartData(this.day, this.amount, {this.isHighlighted = false});
 }

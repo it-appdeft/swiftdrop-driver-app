@@ -4,6 +4,7 @@ class AppConfig {
   AppConfig._();
 
   static String get baseUrl => dotenv.env['BASE_URL'] ?? '';
+  static String get imageUrl => dotenv.env['IMAGE_URL'] ?? baseUrl;
   static String get socketUrl => dotenv.env['SOCKET_URL'] ?? '';
   static String get googleMapsApiKey => dotenv.env['GOOGLE_MAPS_API_KEY'] ?? '';
   static String get firebaseWebApiKey => dotenv.env['FIREBASE_WEB_API_KEY'] ?? '';

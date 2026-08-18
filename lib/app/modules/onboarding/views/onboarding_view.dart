@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../constants/app_strings.dart';
 import '../../../themes/app_colors.dart';
 import '../../../themes/app_dimensions.dart';
 import '../../../themes/app_text_styles.dart';
@@ -38,7 +39,7 @@ class OnboardingView extends GetView<OnboardingController> {
                         ),
                       ),
                       child: Text(
-                        'Skip',
+                        AppStrings.skip,
                         style: AppTextStyles.pSmallMedium
                             .copyWith(color: AppColors.navyMuted200),
                       ),
@@ -83,7 +84,9 @@ class OnboardingView extends GetView<OnboardingController> {
                   const SizedBox(height: AppDimensions.sp24),
                   Obx(
                     () => AppButton(
-                      label: controller.isLastPage ? 'Get Started' : 'Continue',
+                      label: controller.isLastPage
+                          ? AppStrings.getStarted
+                          : AppStrings.continueText,
                       onPressed: controller.nextPage,
                       suffixIcon: Icon(
                         controller.isLastPage
@@ -120,10 +123,10 @@ class _OnboardingPage extends StatelessWidget {
             width: 180,
             height: 180,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
+              color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(AppDimensions.radiusXxl),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.2),
+                color: AppColors.primary.withOpacity(0.2),
                 width: 1,
               ),
             ),

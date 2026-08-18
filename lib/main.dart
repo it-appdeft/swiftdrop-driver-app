@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -24,11 +26,12 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Edge-to-edge: status bar and nav bar fully transparent
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  // System UI configuration: Black icons for status bar across the app
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // Black icons
+      statusBarBrightness: Brightness.light,    // Black icons for iOS
       systemNavigationBarColor: Colors.transparent,
       systemNavigationBarDividerColor: Colors.transparent,
     ),
@@ -46,19 +49,32 @@ class SwiftDropApp extends StatelessWidget {
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
       initialBinding: InitialBinding(),
       initialRoute: AppRoutes.splash,
       getPages: AppPages.routes,
       defaultTransition: Transition.cupertino,
       transitionDuration: const Duration(milliseconds: 280),
-      // Prevent text scaling from breaking layouts
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: const TextScaler.linear(1.0),
+      // Prevent text scaling from breaking layouts + global keyboard handling
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.transparent,
+          systemNavigationBarDividerColor: Colors.transparent,
         ),
-        child: child!,
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(1.0),
+          ),
+          child: DismissKeyboard(
+            child: SafeArea(
+              top: Platform.isIOS,
+              bottom: Platform.isAndroid,
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
+        ),
       ),
     );
   }

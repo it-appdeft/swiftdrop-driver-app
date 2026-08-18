@@ -7,7 +7,7 @@ class AppShadows {
 
   static List<BoxShadow> get cardDefault => [
         BoxShadow(
-          color: AppColors.black.withValues(alpha: 0.08),
+          color: AppColors.black.withOpacity(0.08),
           blurRadius: AppDimensions.shadowCardBlur,
           offset: const Offset(0, 4),
         ),

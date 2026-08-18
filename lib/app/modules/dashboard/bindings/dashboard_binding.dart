@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../../../../data/repositories/auth_repository.dart';
+import '../../../../data/repositories/driver_repository.dart';
 import '../../../../data/repositories/earnings_repository.dart';
 import '../../../../data/repositories/notification_repository.dart';
 import '../../../../data/repositories/order_repository.dart';
@@ -14,12 +15,14 @@ class DashboardBinding extends Bindings {
   void dependencies() {
     // Repositories
     Get.lazyPut<OrderRepository>(() => OrderRepository());
+    Get.lazyPut<DriverRepository>(() => DriverRepository());
     Get.lazyPut<EarningsRepository>(() => EarningsRepository());
     Get.lazyPut<NotificationRepository>(() => NotificationRepository());
     Get.lazyPut<AuthRepository>(() => AuthRepository());
 
     // Tab controllers (lazy — initialized only when tab is first visited)
-    Get.lazyPut<DashboardController>(() => DashboardController(Get.find()));
+    Get.lazyPut<DashboardController>(
+        () => DashboardController(Get.find(), Get.find()));
     Get.lazyPut<OrderHistoryController>(
         () => OrderHistoryController(Get.find()));
     Get.lazyPut<EarningsController>(() => EarningsController(Get.find()));

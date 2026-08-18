@@ -82,7 +82,7 @@ abstract class BaseController extends GetxController {
       }
       return null;
     } finally {
-      if (showLoadingIndicator) hideLoading();
+      if (showLoadingIndicator && !isClosed) hideLoading();
     }
   }
 

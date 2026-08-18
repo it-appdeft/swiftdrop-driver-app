@@ -9,6 +9,21 @@ import '../models/order_model.dart';
 class OrderRepository {
   final Dio _dio = DioClient.instance;
 
+  Future<ApiResponse<List<OrderModel>>> getDeliveryRequests() async {
+    try {
+      final response = await _dio.get(ApiEndpoints.deliveryRequests);
+      return ApiResponse.fromJson(
+        response.data as Map<String, dynamic>,
+        (data) => (data as List<dynamic>)
+            .map((e) => OrderModel.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    } catch (_) {
+      return ApiResponse<List<OrderModel>>(
+          success: true, message: '', data: AppData.activeOrders);
+    }
+  }
+
   Future<ApiResponse<List<OrderModel>>> getActiveOrders() async {
     try {
       final response = await _dio.get(ApiEndpoints.activeOrders);
@@ -82,7 +97,7 @@ class OrderRepository {
     try {
       final response = await _dio.post(
         ApiEndpoints.rejectOrder,
-        data: {'order_id': orderId, 'reason': ?reason},
+        data: {'order_id': orderId, 'reason': reason},
       );
       return ApiResponse.fromJson(
           response.data as Map<String, dynamic>, (data) => data as Map<String, dynamic>);
@@ -112,7 +127,7 @@ class OrderRepository {
     try {
       final response = await _dio.post(
         ApiEndpoints.confirmDelivery,
-        data: {'order_id': orderId, 'proof_image': ?proofImageUrl, 'signature': ?signature},
+        data: {'order_id': orderId, 'proof_image': proofImageUrl, 'signature': signature},
       );
       return ApiResponse.fromJson(
           response.data as Map<String, dynamic>, (data) => data as Map<String, dynamic>);
@@ -130,7 +145,7 @@ class OrderRepository {
     try {
       final response = await _dio.post(
         ApiEndpoints.updateOrderStatus,
-        data: {'order_id': orderId, 'status': status, 'lat': ?lat, 'lng': ?lng},
+        data: {'order_id': orderId, 'status': status, 'lat': lat, 'lng': lng},
       );
       return ApiResponse.fromJson(
           response.data as Map<String, dynamic>, (data) => data as Map<String, dynamic>);

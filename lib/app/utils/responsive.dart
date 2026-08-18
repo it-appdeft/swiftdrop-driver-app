@@ -1,13 +1,53 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class Responsive {
   Responsive._();
 
-  static double get width => Get.width;
-  static double get height => Get.height;
-  static double get statusBarHeight => Get.statusBarHeight;
-  static double get bottomBarHeight => Get.bottomBarHeight;
+  static double get width {
+    try {
+      final views = PlatformDispatcher.instance.views;
+      if (views.isNotEmpty) {
+        final w = views.first.physicalSize.width / views.first.devicePixelRatio;
+        if (w > 0) return w;
+      }
+      // Fallback to GetX if PlatformDispatcher fails
+      final getWidth = Get.width;
+      if (getWidth > 0) return getWidth;
+    } catch (_) {}
+    return 375.0;
+  }
+
+  static double get height {
+    try {
+      final views = PlatformDispatcher.instance.views;
+      if (views.isNotEmpty) {
+        final h = views.first.physicalSize.height / views.first.devicePixelRatio;
+        if (h > 0) return h;
+      }
+      // Fallback to GetX if PlatformDispatcher fails
+      final getHeight = Get.height;
+      if (getHeight > 0) return getHeight;
+    } catch (_) {}
+    return 812.0;
+  }
+
+  static double get statusBarHeight {
+    try {
+      return Get.statusBarHeight;
+    } catch (_) {
+      return 0.0;
+    }
+  }
+
+  static double get bottomBarHeight {
+    try {
+      return Get.bottomBarHeight;
+    } catch (_) {
+      return 0.0;
+    }
+  }
 
   static bool get isMobile => width < 600;
   static bool get isTablet => width >= 600 && width < 1024;

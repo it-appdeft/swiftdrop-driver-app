@@ -26,6 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>App would like to access camera</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>App would like to access gallery</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SwiftDrop Driver app requires location access to find nearby delivery requests and update your position.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SwiftDrop Driver app requires location access to update your live location while on duty.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

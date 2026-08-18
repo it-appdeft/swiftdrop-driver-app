@@ -16,18 +16,12 @@ class SplashController extends BaseController {
     await Future.delayed(
       const Duration(milliseconds: AppConstants.splashDuration),
     );
-    try {
-      if (!StorageService.to.onboardingCompleted) {
-        Get.offAllNamed(AppRoutes.onboarding);
-        return;
-      }
-      if (AuthService.to.isAuthenticated) {
-        Get.offAllNamed(AppRoutes.dashboard);
-      } else {
-        Get.offAllNamed(AppRoutes.login);
-      }
-    } catch (_) {
-      Get.offAllNamed(AppRoutes.login);
+
+    if (StorageService.to.isAutoLogin && AuthService.to.isAuthenticated) {
+      Get.offAllNamed(AppRoutes.dashboard);
+      return;
     }
+
+    Get.offAllNamed(AppRoutes.login);
   }
 }

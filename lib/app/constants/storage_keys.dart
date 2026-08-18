@@ -10,4 +10,8 @@ class StorageKeys {
   static const String selectedLanguage = 'selected_language';
   static const String isOnlineMode = 'is_online_mode';
   static const String lastSyncTime = 'last_sync_time';
+  static const String isAutoLogin = 'is_auto_login';
+  static const String deviceToken = 'device_token';
+  static const String otpData = 'otp_data';
+  static const String registerData = 'register_data';
 }

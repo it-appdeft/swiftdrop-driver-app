@@ -2,7 +2,17 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   AppColors._();
+  static const Color phoneTitleColor  = Color(0xFF595D70);
 
+  // ─── Auth / OTP ────────────────────────────────────────────────────────────
+  static const Color otpTitle           = Color(0xFF3C4042);
+  static const Color otpSubtitle        = Color(0xFF868AA5);
+  static const Color otpDigit           = Color(0xFF0F191F);
+  static const Color otpBoxBg           = Color(0xFFF3F4F6);
+  static const Color otpResendInactive  = Color(0xFFE1E2E3);
+
+  // ─── System tints ──────────────────────────────────────────────────────────
+  static const Color tintBlue = Color(0xFF007AFF);
   // ─── Primary brand — Green ─────────────────────────────────────────────────
   static const Color primary        = Color(0xFF1BC27D);
   static const Color primaryDark    = Color(0xFF169B64);
@@ -60,12 +70,14 @@ class AppColors {
   static const Color warningLight = Color(0xFFFFF3E0);
   static const Color error        = Color(0xFFE53935);
   static const Color errorLight   = Color(0xFFFFEBEE);
+  static const Color deleteRed    = Color(0xFFDC3545);
   static const Color info         = navyMuted600;
 
   // ─── Neutral ───────────────────────────────────────────────────────────────
   static const Color white       = Color(0xFFFFFFFF);
   static const Color black       = Color(0xFF000000);
   static const Color transparent = Colors.transparent;
+  static const Color stroke      = Color(0xFFF2F2E9);
 
   // ─── Semantic aliases — dark-theme mapped ──────────────────────────────────
   static const Color background    = darkBackground;
@@ -75,6 +87,7 @@ class AppColors {
   static const Color textPrimary   = gray50;           // near-white on dark bg
   static const Color textSecondary = navyMuted200;
   static const Color textHint      = navyMuted300;
+  static const Color textMuted     = navyMuted300;
   static const Color textDisabled  = navyMuted400;
   static const Color textOnPrimary = white;
   static const Color textOnDark    = white;
@@ -108,6 +121,15 @@ class AppColors {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const Color lightBorder    = Color(0xFFE5E7EB);
+  static const Color inputHint      = Color(0xFF9CA3AF);
+  static const Color inputText      = Color(0xFF1A1A2E);
+  static const Color inputIcon      = Color(0xFF6B7280);
+  static const Color inputBg        = Color(0xFFF3F4F6);
+  static const Color infoBoxBg      = Color(0xFFF6F8FA);
+  static const Color logoutBg       = Color(0xFFEDEEF1);
+  static const Color profileBodyText = Color(0xFF434656);
 
   // ─── Compat aliases ────────────────────────────────────────────────────────
   static const Color secondary      = navyMuted600;

@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 import '../../../../data/models/order_model.dart';
 import '../../../../data/repositories/order_repository.dart';
 import '../../../base/base_controller.dart';
+import '../../../constants/app_constants.dart';
 import '../../../routes/app_routes.dart';
 import '../../../utils/app_utils.dart';
 
@@ -15,8 +16,32 @@ class OrderDetailController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    if (Get.arguments is OrderModel) {
-      order.value = Get.arguments as OrderModel;
+    loadOrderDetail();
+  }
+
+  Future<void> loadOrderDetail() async {
+    final args = Get.arguments;
+    if (args is OrderModel) {
+      order.value = args;
+      return;
+    }
+
+    String? id;
+    if (args is String) {
+      id = args;
+    } else if (args is Map) {
+      id = args['id']?.toString();
+    }
+
+    if (id != null) {
+      await runAsync(() async {
+        final res = await _orderRepo.getOrderDetail(id!);
+        if (res.success && res.data != null) {
+          order.value = res.data;
+        } else {
+          setError(res.message);
+        }
+      });
     } else {
       setError('Order data not found');
     }
@@ -34,7 +59,8 @@ class OrderDetailController extends BaseController {
     await runAsync(() async {
       await _orderRepo.acceptOrder(order.value!.id);
       _patchStatus('accepted', acceptedAt: DateTime.now());
-      AppUtils.showSuccess('Order accepted!');
+      AppUtils.showSuccess(AppConstants.orderAccepted);
+      Get.offNamed(AppRoutes.activeDelivery, arguments: order.value);
     });
   }
 
@@ -50,7 +76,7 @@ class OrderDetailController extends BaseController {
 
     await runAsync(() async {
       await _orderRepo.rejectOrder(order.value!.id);
-      AppUtils.showSuccess('Order rejected');
+      AppUtils.showSuccess(AppConstants.orderRejected);
       Get.back();
     });
   }
@@ -67,7 +93,7 @@ class OrderDetailController extends BaseController {
     await runAsync(() async {
       await _orderRepo.confirmPickup(order.value!.id);
       _patchStatus('picked_up', pickedUpAt: DateTime.now());
-      AppUtils.showSuccess('Pickup confirmed!');
+      AppUtils.showSuccess(AppConstants.pickupConfirmed);
     });
   }
 
@@ -83,7 +109,7 @@ class OrderDetailController extends BaseController {
     await runAsync(() async {
       await _orderRepo.confirmDelivery(orderId: order.value!.id);
       _patchStatus('delivered', deliveredAt: DateTime.now());
-      AppUtils.showSuccess('Delivery confirmed! Great job!');
+      AppUtils.showSuccess(AppConstants.deliveryConfirmed);
     });
   }
 

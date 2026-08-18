@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../../../generated/assets.dart';
+import '../../../constants/app_strings.dart';
 import '../../../routes/app_routes.dart';
 import '../../../themes/app_colors.dart';
-import '../../../themes/app_dimensions.dart';
+import '../../../themes/app_text_styles.dart';
+import '../../../utils/app_picker_utils.dart';
+import '../../../widgets/app_app_bar.dart';
+import '../../../widgets/app_button.dart';
+import '../../../widgets/app_loader.dart';
+import '../../../widgets/app_text_field.dart';
+import '../../../widgets/otp_input.dart';
 import '../controllers/register_controller.dart';
 
 class RegisterView extends GetView<RegisterController> {
@@ -11,503 +19,540 @@ class RegisterView extends GetView<RegisterController> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 20, color: Color(0xFF1A1A2E)),
-          onPressed: Get.back,
-        ),
-      ),
+      appBar: const AppAppBar(title: ''),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildTitle(),
+            const SizedBox(height: 24),
+            _buildAvatar(),
+            const SizedBox(height: 16),
+
+            // ─── Full Name ───────────────────────────────────────────────────
+            _buildLabel(AppStrings.fullName),
             const SizedBox(height: 8),
-
-            // ─── Heading ───────────────────────────────────────────────────
-            RichText(
-              text: const TextSpan(
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  height: 1.25,
-                ),
-                children: [
-                  TextSpan(
-                    text: 'Become ',
-                    style: TextStyle(color: AppColors.primary),
-                  ),
-                  TextSpan(
-                    text: 'A Delivery\nPartner',
-                    style: TextStyle(color: Color(0xFF1A1A2E)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // ─── Profile photo ─────────────────────────────────────────────
-            Center(
-              child: Stack(
-                children: [
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.grey[200],
-                    ),
-                    child: Icon(
-                      Icons.person_rounded,
-                      size: 48,
-                      color: Colors.grey[400],
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        size: 15,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // ─── Full Name ─────────────────────────────────────────────────
-            _FieldLabel('Full Name', required: true),
-            _UnderlineField(
+            Obx(() => AppTextField(
               controller: controller.nameController,
-              hint: 'Enter Your Full Name',
-            ),
-            const SizedBox(height: 20),
-
-            // ─── Email ─────────────────────────────────────────────────────
-            _FieldLabel('Email Address', required: true),
-            Obx(() {
-              if (controller.emailVerified.value) {
-                return _UnderlineField(
-                  controller: controller.emailController,
-                  hint: 'Enter your Email Address',
-                  suffix: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('VERIFIED',
-                          style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
-                      SizedBox(width: 4),
-                      Icon(Icons.check_circle_rounded,
-                          color: AppColors.primary, size: 16),
-                    ],
-                  ),
-                  readOnly: true,
-                );
-              }
-              return _UnderlineField(
-                controller: controller.emailController,
-                hint: 'Enter your Email Address',
-                keyboardType: TextInputType.emailAddress,
-                suffix: Obx(() => controller.isEmailOtpLoading.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.primary))
-                    : GestureDetector(
-                        onTap: controller.sendEmailOtp,
-                        child: const Text('VERIFY',
-                            style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700)),
-                      )),
-              );
-            }),
-
-            // Email OTP boxes
-            Obx(() => controller.showEmailOtp.value
-                ? _InlineOtpSection(
-                    label:
-                        "We've sent a 4-digit code to your email.",
-                    otpControllers: controller.emailOtpControllers,
-                    focusNodes: controller.emailOtpFocusNodes,
-                    onChanged: controller.onEmailOtpChanged,
-                  )
-                : const SizedBox.shrink()),
-
-            const SizedBox(height: 20),
-
-            // ─── Mobile Number ─────────────────────────────────────────────
-            _FieldLabel('Mobile Number', required: true),
-            Obx(() {
-              if (controller.phoneVerified.value) {
-                return _PhoneField(
-                  controller: controller.phoneController,
-                  readOnly: true,
-                  suffix: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('VERIFIED',
-                          style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700)),
-                      SizedBox(width: 4),
-                      Icon(Icons.check_circle_rounded,
-                          color: AppColors.primary, size: 16),
-                    ],
-                  ),
-                );
-              }
-              return _PhoneField(
-                controller: controller.phoneController,
-                suffix: Obx(() => controller.isPhoneOtpLoading.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AppColors.primary))
-                    : GestureDetector(
-                        onTap: controller.sendPhoneOtp,
-                        child: const Text('Get OTP',
-                            style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700)),
-                      )),
-              );
-            }),
-
-            // Phone OTP boxes
-            Obx(() => controller.showPhoneOtp.value
-                ? _InlineOtpSection(
-                    label: "We've sent a 4-digit code to your phone number.",
-                    otpControllers: controller.phoneOtpControllers,
-                    focusNodes: controller.phoneOtpFocusNodes,
-                    onChanged: controller.onPhoneOtpChanged,
-                  )
-                : const SizedBox.shrink()),
-
-            const SizedBox(height: 32),
-
-            // ─── Register button ───────────────────────────────────────────
-            Obx(() => _GreenButton(
-                  label: 'Register',
-                  isLoading: controller.isLoading.value,
-                  onPressed:
-                      controller.isLoading.value ? null : controller.register,
-                )),
-            const SizedBox(height: 20),
-
-            // Login link
-            Center(
-              child: GestureDetector(
-                onTap: () => Get.offNamed(AppRoutes.login),
-                child: RichText(
-                  text: TextSpan(
-                    style:
-                        TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    children: const [
-                      TextSpan(text: 'Already have an account? '),
-                      TextSpan(
-                        text: 'Login',
-                        style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ),
+              hint: AppStrings.alexandarArnold,
+              fillColor: Colors.white,
+              textColor: Colors.black,
+              enabled: !controller.isLoading.value,
+              textCapitalization: TextCapitalization.words,
+              hintStyle: AppTextStyles.build(
+                size: 14,
+                weight: FontWeight.w400,
+                color: AppColors.textHint,
               ),
-            ),
-            const SizedBox(height: 32),
+            )),
+            const SizedBox(height: 16),
+
+            // ─── Email Address ───────────────────────────────────────────────
+            _buildLabel(AppStrings.emailAddress),
+            const SizedBox(height: 8),
+            _buildEmailField(),
+
+            Obx(() => controller.showEmailOtp.value && !controller.emailVerified.value
+                ? _buildOtpSection(
+                    label: AppStrings.emailOtpSentDesc,
+                    otpController: controller.emailOtpController,
+                    otpFocusNode: controller.emailOtpFocusNode,
+                    onChanged: controller.onEmailOtpChanged,
+                    onVerify: controller.verifyEmailOtp,
+                    resendTimer: controller.emailResendTimer,
+                    isLoading: controller.isEmailVerifying.value,
+                    isOtpComplete: controller.isEmailOtpComplete,
+                  )
+                : const SizedBox.shrink()),
+            const SizedBox(height: 16),
+
+            // ─── Mobile Number ───────────────────────────────────────────────
+            _buildLabel(AppStrings.mobileNumber),
+            const SizedBox(height: 8),
+            _buildPhoneField(),
+
+            Obx(() => controller.showPhoneOtp.value && !controller.phoneVerified.value
+                ? _buildOtpSection(
+                    label: AppStrings.phoneOtpSentDesc,
+                    otpController: controller.phoneOtpController,
+                    otpFocusNode: controller.phoneOtpFocusNode,
+                    onChanged: controller.onPhoneOtpChanged,
+                    onVerify: controller.verifyPhoneOtp,
+                    resendTimer: controller.phoneResendTimer,
+                    isLoading: controller.isPhoneVerifying.value,
+                    isOtpComplete: controller.isPhoneOtpComplete,
+                  )
+                : const SizedBox.shrink()),
+            const SizedBox(height: 24),
+
+            // ─── Register Button ─────────────────────────────────────────────
+            Obx(() {
+              final enabled = controller.emailVerified.value && controller.phoneVerified.value;
+              return AppButton(
+                label: AppStrings.register,
+                isLoading: controller.isLoading.value,
+                onPressed: enabled ? controller.register : null,
+                backgroundColor: enabled ? AppColors.primary : AppColors.primary.withValues(alpha: 0.5),
+              );
+            }),
+            const SizedBox(height: 24),
+
+            // ─── Login Link ──────────────────────────────────────────────────
+            _buildLoginLink(),
+            SizedBox(height: bottomPad + 24),
           ],
         ),
       ),
     );
   }
-}
 
-// ─── Inline OTP section ───────────────────────────────────────────────────────
+  // ─── Title ──────────────────────────────────────────────────────────────────
 
-class _InlineOtpSection extends StatelessWidget {
-  final String label;
-  final List<TextEditingController> otpControllers;
-  final List<FocusNode> focusNodes;
-  final void Function(int, String) onChanged;
+  Widget _buildTitle() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: AppTextStyles.build(
+              size: 32,
+              weight: FontWeight.w700,
+              fontFamily: 'Helvetica Neue',
+              color: const Color(0xFF1A1A2E),
+            ),
+            children: [
+              TextSpan(
+                text: AppStrings.become,
+                style: AppTextStyles.build(
+                  size: 32,
+                  weight: FontWeight.w700,
+                  fontFamily: 'Helvetica Neue',
+                  color: AppColors.primary,
+                ),
+              ),
+              const TextSpan(text: AppStrings.aDeliveryPartner),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-  const _InlineOtpSection({
-    required this.label,
-    required this.otpControllers,
-    required this.focusNodes,
-    required this.onChanged,
-  });
+  // ─── Avatar ─────────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 4),
+  Widget _buildAvatar() {
+    return Center(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          AppPickerUtils.showPicker(
+            onFilePicked: (file) => controller.avatarFile.value = file,
+          );
+        },
+        child: Stack(
+          children: [
+            Obx(
+                  () => Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF3F4F6),
+                ),
+                child: controller.avatarFile.value != null
+                    ? ClipOval(
+                  child: Image.file(
+                    controller.avatarFile.value!,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                  ),
+                )
+                    : const Icon(
+                  Icons.person,
+                  size: 34,
+                  color: Color(0xFF9CA3AF),
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Assets.images.solarCameraBroken3x.image(
+                    width: 30,
+                    height: 30,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Label ──────────────────────────────────────────────────────────────────
+
+  Widget _buildLabel(String text, {bool isRequired = true}) {
+    return RichText(
+      text: TextSpan(
+        style: AppTextStyles.build(
+          size: 14,
+          weight: FontWeight.w500,
+          color: AppColors.phoneTitleColor,
+        ),
+        children: [
+          TextSpan(text: text),
+          if (isRequired)
+            const TextSpan(
+              text: ' *',
+              style: TextStyle(color: Colors.red),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Email Field ────────────────────────────────────────────────────────────
+
+  Widget _buildEmailField() {
+    return Obx(() {
+      final isVerified = controller.emailVerified.value;
+      final isSent = controller.showEmailOtp.value;
+      final isLoading = controller.isLoading.value;
+      final isSending = controller.isEmailSending.value;
+
+      return AppTextField(
+        controller: controller.emailController,
+        hint: AppStrings.emailHint,
+        fillColor: Colors.white,
+        textColor: Colors.black,
+        readOnly: isVerified,
+        enabled: !isLoading,
+        keyboardType: TextInputType.emailAddress,
+        textCapitalization: TextCapitalization.none,
+        inputFormatters: [
+          FilteringTextInputFormatter.deny(RegExp(r'\s')),
+        ],
+        suffixIcon: SizedBox(
+          width: isSent && !isVerified ? 132 : null,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (isVerified)
+                  _buildVerifiedBadge()
+                else if (isSent)
+                  _buildResendText(
+                    controller.emailResendTimer,
+                    controller.sendEmailOtp,
+                    isLoading: isSending,
+                  )
+                else
+                  _buildActionText(
+                    AppStrings.getOtp,
+                    controller.sendEmailOtp,
+                    enabled: controller.isEmailValid.value && !isLoading && !isSending,
+                    isLoading: isSending,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  // ─── Phone Field ────────────────────────────────────────────────────────────
+
+  Widget _buildPhoneField() {
+    return Obx(() {
+      final isVerified = controller.phoneVerified.value;
+      final isSent = controller.showPhoneOtp.value;
+      final isLoading = controller.isLoading.value;
+      final isSending = controller.isPhoneSending.value;
+
+      return PhoneTextField(
+        label: null,
+        controller: controller.phoneController,
+        fillColor: Colors.white,
+        textColor: Colors.black,
+        countryCode: controller.dialCode,
+        flagEmoji: controller.dialCode == '+44' ? '🇬🇧' : controller.flagEmoji,
+        isoCode: controller.dialCode == '+44' ? 'GB' : controller.isoCode,
+        enabled: !isLoading,
+        onCountryTap: (isVerified || isLoading) ? null : _openCountryPicker,
+        suffixIcon: Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isVerified)
+                _buildVerifiedBadge()
+              else if (isSent)
+                _buildResendText(
+                  controller.phoneResendTimer,
+                  controller.sendPhoneOtp,
+                  isLoading: isSending,
+                )
+              else
+                _buildActionText(
+                  AppStrings.getOtp,
+                  controller.sendPhoneOtp,
+                  enabled: controller.phoneLength.value >= 8 && controller.phoneLength.value <= 12 && !isLoading && !isSending,
+                  isLoading: isSending,
+                ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  void _openCountryPicker() {
+    AppPickerUtils.openCountryPicker(onSelect: controller.onCountrySelected);
+  }
+
+  // ─── OTP Section ────────────────────────────────────────────────────────────
+
+  Widget _buildOtpSection({
+    required String label,
+    required TextEditingController otpController,
+    required FocusNode otpFocusNode,
+    required ValueChanged<String> onChanged,
+    required VoidCallback onVerify,
+    required RxInt resendTimer,
+    required RxBool isOtpComplete,
+    bool isLoading = false,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Enter Verification Code',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700]),
+            AppStrings.enterVerificationCode,
+            style: AppTextStyles.build(
+              size: 16,
+              weight: FontWeight.w600,
+              color: const Color(0xFF4B5563),
+            ),
           ),
           const SizedBox(height: 4),
-          Text(label,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-          const SizedBox(height: 12),
+          Text(
+            label,
+            style: AppTextStyles.build(
+              size: 13,
+              weight: FontWeight.w400,
+              color: const Color(0xFF9CA3AF),
+            ).copyWith(height: 1.3),
+          ),
+          const SizedBox(height: 20),
           Row(
             children: [
-              ...List.generate(4, (i) => Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: _SmallOtpBox(
-                      controller: otpControllers[i],
-                      focusNode: focusNodes[i],
-                      autofocus: i == 0,
-                      onChanged: (v) => onChanged(i, v),
-                    ),
-                  )),
-              GestureDetector(
-                onTap: () {},
-                child: const Text('VERIFY',
-                    style: TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
+              OtpInput(
+                controller: otpController,
+                focusNode: otpFocusNode,
+                length: 4,
+                onChanged: onChanged,
+                alignment: MainAxisAlignment.start,
+                boxSize: 44, // Reduced from 46 to save space
+                showDashes: true,
+                autofocus: true,
               ),
+              const Spacer(), // Use Spacer instead of fixed 30px gap to handle different screen widths
+              Obx(() {
+                final enabled = isOtpComplete.value && !isLoading;
+                return GestureDetector(
+                  onTap: enabled ? onVerify : null,
+                  child: Container(
+                    height: 46, // Matches OTP box height
+                    alignment: Alignment.center,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Opacity(
+                          opacity: isLoading ? 0 : 1,
+                          child: Text(
+                            AppStrings.verify.toUpperCase(),
+                            style: AppTextStyles.build(
+                              size: 13,
+                              weight: FontWeight.w700,
+                              color: enabled ? AppColors.primary : AppColors.primary.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ),
+                        if (isLoading) AppLoader.small(),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ],
           ),
         ],
       ),
     );
   }
-}
 
-class _SmallOtpBox extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final bool autofocus;
-  final ValueChanged<String> onChanged;
+  // ─── Helpers ────────────────────────────────────────────────────────────────
 
-  const _SmallOtpBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    this.autofocus = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        autofocus: autofocus,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(
-            fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
-        decoration: InputDecoration(
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-            borderSide: BorderSide(color: Colors.grey[300]!),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+  Widget _buildVerifiedBadge() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          AppStrings.verified,
+          style: AppTextStyles.build(
+            size: 12,
+            weight: FontWeight.w600,
+            color: AppColors.primaryDarkest,
           ),
         ),
-        onChanged: onChanged,
-      ),
+        const SizedBox(width: 4),
+        const Icon(
+          Icons.check_circle,
+          color: AppColors.primaryDarkest,
+          size: 16,
+        ),
+      ],
     );
   }
-}
 
-// ─── Shared form widgets ──────────────────────────────────────────────────────
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  final bool required;
-  const _FieldLabel(this.text, {this.required = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
-              fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+  Widget _buildActionText(String text, VoidCallback onTap, {bool enabled = true, bool isLoading = false}) {
+    return GestureDetector(
+      onTap: (enabled && !isLoading)
+          ? () {
+              HapticFeedback.lightImpact();
+              onTap();
+            }
+          : null,
+      child: Container(
+        height: 32,
+        alignment: Alignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            TextSpan(text: text),
-            if (required)
-              const TextSpan(
-                  text: ' *', style: TextStyle(color: AppColors.error)),
+            Opacity(
+              opacity: isLoading ? 0 : 1,
+              child: Text(
+                text,
+                style: AppTextStyles.build(
+                  size: 12,
+                  weight: FontWeight.w600,
+                  color: enabled ? AppColors.primary : AppColors.primary.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+            if (isLoading) AppLoader.small(),
           ],
         ),
       ),
     );
   }
-}
 
-class _UnderlineField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final Widget? suffix;
-  final TextInputType? keyboardType;
-  final bool readOnly;
-
-  const _UnderlineField({
-    required this.controller,
-    required this.hint,
-    this.suffix,
-    this.keyboardType,
-    this.readOnly = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      readOnly: readOnly,
-      keyboardType: keyboardType,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-        suffix: suffix,
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey[300]!),
+  Widget _buildResendText(RxInt timer, VoidCallback onResend, {bool isLoading = false}) {
+    return Obx(() {
+      return Container(
+        height: 32,
+        alignment: Alignment.center,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Opacity(
+              opacity: isLoading ? 0 : 1,
+              child: _buildResendContent(timer, onResend),
+            ),
+            if (isLoading) AppLoader.small(),
+          ],
         ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
+      );
+    });
+  }
+
+  Widget _buildResendContent(RxInt timer, VoidCallback onResend) {
+    final t = timer.value;
+    if (t > 0) {
+      return RichText(
+        text: TextSpan(
+          style: AppTextStyles.build(size: 12, weight: FontWeight.w500),
+          children: [
+            const TextSpan(
+              text: '${AppStrings.resendOtp} ',
+              style: TextStyle(color: AppColors.otpResendInactive),
+            ),
+            TextSpan(
+              text: '($t)',
+              style: const TextStyle(color: AppColors.phoneTitleColor),
+            ),
+          ],
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+      );
+    }
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onResend();
+      },
+      child: Text(
+        AppStrings.resendOtp,
+        style: AppTextStyles.build(
+          size: 12,
+          weight: FontWeight.w600,
+          color: AppColors.primary,
+        ),
       ),
     );
   }
-}
 
-class _PhoneField extends StatelessWidget {
-  final TextEditingController controller;
-  final Widget? suffix;
-  final bool readOnly;
-
-  const _PhoneField({required this.controller, this.suffix, this.readOnly = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+  Widget _buildLoginLink() {
+    return Center(
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: AppTextStyles.pSmallRegular.copyWith(
+            color: AppColors.otpTitle,
           ),
-          child: Row(
-            children: [
-              const Text('🇬🇧', style: TextStyle(fontSize: 18)),
-              const SizedBox(width: 4),
-              Text('+44',
-                  style: TextStyle(
-                      color: Colors.grey[700],
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14)),
-              const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 16, color: Colors.grey[500]),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            readOnly: readOnly,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A2E)),
-            decoration: InputDecoration(
-              hintText: '07700 000000',
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              suffix: suffix,
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey[300]!),
+          children: [
+            const TextSpan(text: AppStrings.alreadyHaveAccount),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Get.toNamed(AppRoutes.login);
+                },
+                child: Text(
+                  AppStrings.login,
+                  style: AppTextStyles.pSmallMedium.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
               ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: AppColors.primary, width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
             ),
-          ),
+          ],
         ),
-      ],
-    );
-  }
-}
-
-class _GreenButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-
-  const _GreenButton({required this.label, this.onPressed, this.isLoading = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: AppDimensions.buttonHeight,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5),
-              )
-            : Text(label,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w700)),
       ),
     );
   }

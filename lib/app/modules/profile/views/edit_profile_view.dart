@@ -1,169 +1,183 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import '../../../../data/models/user_model.dart';
+import '../../../constants/app_strings.dart';
 import '../../../themes/app_colors.dart';
-import '../../../themes/app_decorations.dart';
-import '../../../themes/app_dimensions.dart';
 import '../../../themes/app_text_styles.dart';
+import '../../../widgets/app_app_bar.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_text_field.dart';
+import '../../../widgets/shimmer_widgets.dart';
+import '../../../widgets/app_loader.dart';
 import '../controllers/profile_controller.dart';
+import '../../../../generated/assets.dart';
+import '../../../services/auth_service.dart';
+import '../../../utils/app_picker_utils.dart';
 
 class EditProfileView extends GetView<ProfileController> {
   const EditProfileView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final user = Get.arguments as UserModel?;
-    final nameFocus    = FocusNode();
-    final emailFocus   = FocusNode();
-    final vehicleFocus = FocusNode();
-    final plateHocus   = FocusNode();
-
-    final nameCtrl    = TextEditingController(text: user?.name);
-    final emailCtrl   = TextEditingController(text: user?.email);
-    final vehicleCtrl = TextEditingController(text: user?.vehicleType);
-    final plateCtrl   = TextEditingController(text: user?.vehicleNumber);
-
+    final bottomPad = MediaQuery.of(context).padding.bottom;
     return Scaffold(
-      backgroundColor: AppColors.darkBackground,
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        backgroundColor: AppColors.darkSurface,
-        foregroundColor: AppColors.textPrimary,
+      backgroundColor: AppColors.white,
+      appBar: const AppAppBar(
+        title: AppStrings.editProfile,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppDimensions.paddingMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, 24, 24, 24),
+            child: ShimmerEditProfile(),
+          );
+        }
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 24),
+              _buildAvatar(),
+              const SizedBox(height: 32),
+
+              // ─── Full Name ───────────────────────────────────────────────────
+              _buildLabel(AppStrings.fullName),
+              const SizedBox(height: 8),
+              AppTextField(
+                controller: controller.nameController,
+                hint: AppStrings.alexandarArnold,
+                fillColor: AppColors.white,
+                textColor: Colors.black,
+                textCapitalization: TextCapitalization.words,
+                hintStyle: AppTextStyles.build(
+                  size: 14,
+                  weight: FontWeight.w400,
+                  color: AppColors.textHint,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ─── Mobile Number ───────────────────────────────────────────────
+              _buildLabel(AppStrings.mobileNumber),
+              const SizedBox(height: 8),
+              _buildPhoneField(),
+              const SizedBox(height: 16),
+
+              // ─── Email Address ───────────────────────────────────────────────
+              _buildLabel(AppStrings.emailAddress),
+              const SizedBox(height: 8),
+              _buildEmailField(),
+
+              const SizedBox(height: 100),
+            ],
+          ),
+        );
+      }),
+      bottomNavigationBar: Padding(
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 24 + bottomPad),
+        child: Obx(
+          () => AppButton(
+            label: AppStrings.update,
+            isLoading: controller.isSaving.value,
+            onPressed: controller.canSave.value
+                ? controller.saveEditedProfile
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text, {bool isRequired = true}) {
+    return RichText(
+      text: TextSpan(
+        style: AppTextStyles.build(
+          size: 14,
+          weight: FontWeight.w500,
+          color: AppColors.phoneTitleColor,
+        ),
+        children: [
+          TextSpan(text: text),
+          if (isRequired)
+            const TextSpan(
+              text: ' *',
+              style: TextStyle(color: Colors.red),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    return Center(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.lightImpact();
+          AppPickerUtils.showPicker(
+            onFilePicked: (file) => controller.avatarFile.value = file,
+          );
+        },
+        child: Stack(
           children: [
-            // Avatar section
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: AppDimensions.avatarLg / 2,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                    child: Text(
-                      user?.name.isNotEmpty == true
-                          ? user!.name[0].toUpperCase()
-                          : 'D',
-                      style: AppTextStyles.h3Bold
-                          .copyWith(color: AppColors.primary),
+            Obx(() {
+              final user = AuthService.to.user;
+              final file = controller.avatarFile.value;
+              return Container(
+                width: 80,
+                height: 80,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF3F4F6),
+                ),
+                child: file != null
+                    ? ClipOval(
+                        child: Image.file(
+                          file,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : (user?.avatar != null
+                        ? ClipOval(
+                            child: Image.network(
+                              user!.avatar!,
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.person,
+                            size: 44,
+                            color: Color(0xFF9CA3AF),
+                          )),
+              );
+            }),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 4,
+                      offset: Offset(0, 2),
                     ),
+                  ],
+                ),
+                child: Center(
+                  child: Assets.images.solarCameraBroken3x.image(
+                    width: 20,
+                    height: 20,
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: AppDimensions.sp32,
-                      height: AppDimensions.sp32,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: AppColors.darkBackground, width: 2),
-                      ),
-                      child: const Icon(Icons.camera_alt_rounded,
-                          color: AppColors.white, size: AppDimensions.iconXs),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppDimensions.paddingXl),
-
-            // Personal info section
-            _SectionLabel('Personal Information'),
-            const SizedBox(height: AppDimensions.gapMd),
-            Container(
-              padding: const EdgeInsets.all(AppDimensions.paddingMd),
-              decoration: AppDecorations.cardDark,
-              child: Column(
-                children: [
-                  AppTextField(
-                    label: 'Full Name',
-                    hint: 'Enter your full name',
-                    controller: nameCtrl,
-                    focusNode: nameFocus,
-                    textInputAction: TextInputAction.next,
-                    prefixIcon: const Icon(Icons.person_outline_rounded,
-                        color: AppColors.navyMuted300),
-                    onSubmitted: (_) =>
-                        FocusScope.of(context).requestFocus(emailFocus),
-                  ),
-                  const SizedBox(height: AppDimensions.gapMd),
-                  AppTextField(
-                    label: 'Email Address',
-                    hint: 'Enter your email',
-                    controller: emailCtrl,
-                    focusNode: emailFocus,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    prefixIcon: const Icon(Icons.email_outlined,
-                        color: AppColors.navyMuted300),
-                    onSubmitted: (_) =>
-                        FocusScope.of(context).requestFocus(vehicleFocus),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppDimensions.gapLg),
-
-            // Vehicle info section
-            _SectionLabel('Vehicle Information'),
-            const SizedBox(height: AppDimensions.gapMd),
-            Container(
-              padding: const EdgeInsets.all(AppDimensions.paddingMd),
-              decoration: AppDecorations.cardDark,
-              child: Column(
-                children: [
-                  AppTextField(
-                    label: 'Vehicle Type',
-                    hint: 'e.g. Bike, Scooter, Car',
-                    controller: vehicleCtrl,
-                    focusNode: vehicleFocus,
-                    textInputAction: TextInputAction.next,
-                    prefixIcon: const Icon(Icons.two_wheeler_rounded,
-                        color: AppColors.navyMuted300),
-                    onSubmitted: (_) =>
-                        FocusScope.of(context).requestFocus(plateHocus),
-                  ),
-                  const SizedBox(height: AppDimensions.gapMd),
-                  AppTextField(
-                    label: 'Vehicle Number',
-                    hint: 'e.g. MH12AB1234',
-                    controller: plateCtrl,
-                    focusNode: plateHocus,
-                    textInputAction: TextInputAction.done,
-                    prefixIcon: const Icon(Icons.pin_rounded,
-                        color: AppColors.navyMuted300),
-                    onSubmitted: (_) =>
-                        FocusScope.of(context).unfocus(),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppDimensions.sp32),
-
-            // Save button
-            Obx(
-              () => AppButton(
-                label: 'Save Changes',
-                isLoading: controller.isLoading.value,
-                onPressed: () => controller.saveEditedProfile(
-                  name: nameCtrl.text.trim(),
-                  email: emailCtrl.text.trim().isEmpty
-                      ? null
-                      : emailCtrl.text.trim(),
-                  vehicleType: vehicleCtrl.text.trim().isEmpty
-                      ? null
-                      : vehicleCtrl.text.trim(),
-                  vehicleNumber: plateCtrl.text.trim().isEmpty
-                      ? null
-                      : plateCtrl.text.trim(),
                 ),
               ),
             ),
@@ -172,15 +186,94 @@ class EditProfileView extends GetView<ProfileController> {
       ),
     );
   }
-}
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
+  Widget _buildPhoneField() {
+    return Obx(() => PhoneTextField(
+          label: null,
+          controller: controller.phoneController,
+          readOnly: true,
+          fillColor: AppColors.white,
+          textColor: Colors.black,
+          countryCode: controller.dialCode,
+          flagEmoji: controller.dialCode == '+44' ? '🇬🇧' : controller.flagEmoji,
+          isoCode: controller.dialCode == '+44' ? 'GB' : controller.isoCode,
+          onCountryTap: null,
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionText(
+                  AppStrings.change,
+                  controller.startPhoneChange,
+                  isLoading: controller.isPhoneSending.value,
+                ),
+              ],
+            ),
+          ),
+        ));
+  }
 
-  const _SectionLabel(this.text);
+  Widget _buildEmailField() {
+    return Obx(() => AppTextField(
+          label: null,
+          controller: controller.emailController,
+          readOnly: true,
+          hint: AppStrings.emailHint,
+          fillColor: AppColors.white,
+          textColor: Colors.black,
+          suffixIcon: Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionText(
+                  AppStrings.change,
+                  controller.startEmailChange,
+                  isLoading: controller.isEmailSending.value,
+                ),
+              ],
+            ),
+          ),
+        ));
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: AppTextStyles.sectionTitle);
+  Widget _buildActionText(
+    String text,
+    VoidCallback onTap, {
+    bool enabled = true,
+    bool isLoading = false,
+  }) {
+    return GestureDetector(
+      onTap: (enabled && !isLoading)
+          ? () {
+              HapticFeedback.lightImpact();
+              onTap();
+            }
+          : null,
+      child: Container(
+        height: 32,
+        alignment: Alignment.center,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Opacity(
+              opacity: isLoading ? 0 : 1,
+              child: Text(
+                text,
+                style: AppTextStyles.build(
+                  size: 12,
+                  weight: FontWeight.w600,
+                  color: enabled
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
+            if (isLoading) AppLoader.small(),
+          ],
+        ),
+      ),
+    );
   }
 }

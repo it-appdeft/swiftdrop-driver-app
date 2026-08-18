@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../constants/app_strings.dart';
 import '../../../base/base_controller.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/storage_service.dart';
@@ -24,25 +25,22 @@ class OnboardingController extends BaseController {
 
   final pages = const [
     OnboardingPage(
-      title: 'Fast Deliveries',
-      subtitle: 'Earn on your schedule',
+      title: AppStrings.fastDeliveries,
+      subtitle: AppStrings.earnOnSchedule,
       icon: Icons.delivery_dining_rounded,
-      description:
-          'Accept orders near you and deliver them quickly. The faster you deliver, the more you earn.',
+      description: AppStrings.fastDeliveriesDesc,
     ),
     OnboardingPage(
-      title: 'Real-time Tracking',
-      subtitle: 'Always know where to go',
+      title: AppStrings.realTimeTracking,
+      subtitle: AppStrings.alwaysKnowWhereToGo,
       icon: Icons.location_on_rounded,
-      description:
-          'Get turn-by-turn navigation for every delivery. Never get lost with our smart routing system.',
+      description: AppStrings.realTimeTrackingDesc,
     ),
     OnboardingPage(
-      title: 'Instant Payments',
-      subtitle: 'Get paid after every delivery',
+      title: AppStrings.instantPayments,
+      subtitle: AppStrings.getPaidAfterEveryDelivery,
       icon: Icons.account_balance_wallet_rounded,
-      description:
-          'Your earnings are credited instantly after each delivery. Withdraw anytime to your bank account.',
+      description: AppStrings.instantPaymentsDesc,
     ),
   ];
 

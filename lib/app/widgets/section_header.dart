@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../themes/app_colors.dart';
 import '../themes/app_dimensions.dart';
 import '../themes/app_text_styles.dart';
@@ -23,7 +24,10 @@ class SectionHeader extends StatelessWidget {
         Text(title, style: AppTextStyles.sectionTitle),
         if (actionLabel != null && onAction != null)
           GestureDetector(
-            onTap: onAction,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onAction!();
+            },
             child: Text(
               actionLabel!,
               style: AppTextStyles.pXSmall.copyWith(color: AppColors.primary),

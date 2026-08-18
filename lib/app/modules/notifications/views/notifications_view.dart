@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../../../data/models/notification_model.dart';
+import '../../../constants/app_strings.dart';
 import '../../../themes/app_colors.dart';
 import '../../../themes/app_decorations.dart';
 import '../../../themes/app_dimensions.dart';
@@ -18,7 +20,7 @@ class NotificationsView extends GetView<NotificationsController> {
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const Text(AppStrings.notifications),
         backgroundColor: AppColors.darkSurface,
         foregroundColor: AppColors.textPrimary,
         actions: [
@@ -26,7 +28,7 @@ class NotificationsView extends GetView<NotificationsController> {
               ? TextButton(
                   onPressed: controller.markAllAsRead,
                   child: Text(
-                    'Mark all read',
+                    AppStrings.markAllRead,
                     style: AppTextStyles.pXSmall
                         .copyWith(color: AppColors.primary),
                   ),
@@ -98,7 +100,10 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppDimensions.paddingMd,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../../constants/app_strings.dart';
 import '../../../themes/app_colors.dart';
 import '../../../themes/app_decorations.dart';
 import '../../../themes/app_dimensions.dart';
@@ -14,7 +16,7 @@ class SettingsView extends GetView<SettingsController> {
     return Scaffold(
       backgroundColor: AppColors.darkBackground,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text(AppStrings.settings),
         backgroundColor: AppColors.darkSurface,
         foregroundColor: AppColors.textPrimary,
       ),
@@ -22,7 +24,7 @@ class SettingsView extends GetView<SettingsController> {
         padding: const EdgeInsets.all(AppDimensions.paddingMd),
         children: [
           // Notifications section
-          _SectionLabel('Notifications'),
+          _SectionLabel(AppStrings.notifications),
           const SizedBox(height: AppDimensions.gapSm),
           Container(
             decoration: AppDecorations.cardDark,
@@ -31,8 +33,8 @@ class SettingsView extends GetView<SettingsController> {
                 Obx(
                   () => _ToggleTile(
                     icon: Icons.local_shipping_rounded,
-                    label: 'Order Notifications',
-                    subtitle: 'New orders and status updates',
+                    label: AppStrings.orderNotifications,
+                    subtitle: AppStrings.orderNotificationsDesc,
                     value: controller.orderNotifications.value,
                     onChanged: controller.setOrderNotifications,
                   ),
@@ -41,8 +43,8 @@ class SettingsView extends GetView<SettingsController> {
                 Obx(
                   () => _ToggleTile(
                     icon: Icons.account_balance_wallet_rounded,
-                    label: 'Payment Notifications',
-                    subtitle: 'Earnings and wallet updates',
+                    label: AppStrings.paymentNotifications,
+                    subtitle: AppStrings.paymentNotificationsDesc,
                     value: controller.paymentNotifications.value,
                     onChanged: controller.setPaymentNotifications,
                   ),
@@ -53,7 +55,7 @@ class SettingsView extends GetView<SettingsController> {
           const SizedBox(height: AppDimensions.gapLg),
 
           // Privacy section
-          _SectionLabel('Privacy & Location'),
+          _SectionLabel(AppStrings.privacyAndLocation),
           const SizedBox(height: AppDimensions.gapSm),
           Container(
             decoration: AppDecorations.cardDark,
@@ -62,8 +64,8 @@ class SettingsView extends GetView<SettingsController> {
                 Obx(
                   () => _ToggleTile(
                     icon: Icons.location_on_rounded,
-                    label: 'Location Tracking',
-                    subtitle: 'Share live location while on duty',
+                    label: AppStrings.locationTracking,
+                    subtitle: AppStrings.locationTrackingDesc,
                     value: controller.locationTracking.value,
                     onChanged: controller.setLocationTracking,
                   ),
@@ -71,8 +73,14 @@ class SettingsView extends GetView<SettingsController> {
                 _SettingsDivider(),
                 _ActionTile(
                   icon: Icons.privacy_tip_rounded,
-                  label: 'Privacy Policy',
+                  label: AppStrings.privacyPolicy,
                   onTap: controller.openPrivacyPolicy,
+                ),
+                _SettingsDivider(),
+                _ActionTile(
+                  icon: Icons.description_rounded,
+                  label: 'Terms & Conditions',
+                  onTap: controller.openTermsAndConditions,
                 ),
               ],
             ),
@@ -80,7 +88,7 @@ class SettingsView extends GetView<SettingsController> {
           const SizedBox(height: AppDimensions.gapLg),
 
           // General section
-          _SectionLabel('General'),
+          _SectionLabel(AppStrings.general),
           const SizedBox(height: AppDimensions.gapSm),
           Container(
             decoration: AppDecorations.cardDark,
@@ -88,19 +96,19 @@ class SettingsView extends GetView<SettingsController> {
               children: [
                 _ActionTile(
                   icon: Icons.cleaning_services_rounded,
-                  label: 'Clear Cache',
+                  label: AppStrings.clearCache,
                   onTap: controller.clearCache,
                 ),
                 _SettingsDivider(),
                 _ActionTile(
                   icon: Icons.headset_mic_rounded,
-                  label: 'Contact Support',
+                  label: AppStrings.contactSupport,
                   onTap: controller.openSupport,
                 ),
                 _SettingsDivider(),
                 _InfoTile(
                   icon: Icons.info_outline_rounded,
-                  label: 'App Version',
+                  label: AppStrings.appVersion,
                   value: controller.appVersion,
                 ),
               ],
@@ -200,7 +208,10 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       leading: Container(
         width: AppDimensions.sp32,
         height: AppDimensions.sp32,

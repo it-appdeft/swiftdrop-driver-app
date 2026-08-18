@@ -25,7 +25,6 @@ class DioClient {
         receiveTimeout: Duration(seconds: AppConfig.apiTimeout),
         sendTimeout: Duration(seconds: AppConfig.apiTimeout),
         headers: const {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         responseType: ResponseType.json,

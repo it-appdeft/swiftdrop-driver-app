@@ -10,10 +10,20 @@ abstract class AppRoutes {
   static const orderDetail = '/order-detail';
   static const orderHistory = '/order-history';
   static const earnings = '/earnings';
+  static const transactionHistory = '/transaction-history';
   static const profile = '/profile';
   static const editProfile = '/edit-profile';
   static const notifications = '/notifications';
   static const support = '/support';
   static const settings = '/settings';
+  static const changePhone = '/change-phone';
+  static const changeEmail = '/change-email';
+  static const accountDetails = '/account-details';
   static const map = '/map';
+  static const activeDelivery = '/active-delivery';
+  static const orderPickup = '/order-pickup';
+  static const deliveryVerification = '/delivery-verification';
+  static const payoutReceipt = '/payout-receipt';
+  static const termsAndConditions = '/terms-and-conditions';
+  static const privacyPolicy = '/privacy-policy';
 }

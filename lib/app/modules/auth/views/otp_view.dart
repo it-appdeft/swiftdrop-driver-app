@@ -1,202 +1,225 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../../constants/app_constants.dart';
+import '../../../constants/app_strings.dart';
 import '../../../themes/app_colors.dart';
-import '../../../themes/app_dimensions.dart';
+import '../../../themes/app_text_styles.dart';
+import '../../../widgets/app_app_bar.dart';
+import '../../../widgets/app_button.dart';
+import '../../../widgets/otp_input.dart';
 import '../controllers/auth_controller.dart';
+import '../../profile/controllers/profile_controller.dart';
+import '../../settings/controllers/settings_controller.dart';
 
-class OtpView extends GetView<AuthController> {
+class OtpView extends StatelessWidget {
   const OtpView({super.key});
 
+  dynamic get controller {
+    final from = Get.arguments is Map ? Get.arguments['from'] : null;
+    if (from == 'profile') return Get.find<ProfileController>();
+    if (from == 'settings') return Get.find<SettingsController>();
+    return Get.find<AuthController>();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final ctrl = controller;
+    final isVerifyExisting = Get.arguments?['mode'] == 'verify-existing';
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              size: 20, color: Color(0xFF1A1A2E)),
-          onPressed: Get.back,
-        ),
+      backgroundColor: AppColors.white,
+      appBar: AppAppBar(
+        title: isVerifyExisting
+            ? AppStrings.verifyExistingAccount
+            : AppStrings.otpVerification,
+        onBack: () {
+          ctrl.resetOtp();
+          Get.back();
+        },
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 16),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
 
-            const Text(
-              'OTP Verification',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1A1A2E),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
+                      _buildSubtitle(ctrl),
 
-            Builder(builder: (_) {
-              final raw = controller.phone;
-              final display = raw.startsWith('0') ? '+44 ${raw.substring(1)}' : raw;
-              return Text(
-                'We have sent a verification code\nto $display',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[500],
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              );
-            }),
-            const SizedBox(height: 40),
+                      const SizedBox(height: 18),
 
-            // OTP boxes
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (i) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: _OtpBox(
-                    controller: controller.otpBoxControllers[i],
-                    focusNode: controller.otpBoxFocusNodes[i],
-                    onChanged: (v) => controller.onOtpBoxChanged(i, v),
-                    autofocus: i == 0,
+                      _buildOtpBoxes(ctrl),
+
+                      const SizedBox(height: 16),
+
+                      _buildResendButton(ctrl),
+
+                      const Spacer(),
+
+                      _buildVerifyButton(ctrl),
+                      SizedBox(height: 24 + bottomPad),
+                    ],
                   ),
-                );
-              }),
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
+          );
+        },
+      ),
+    );
+  }
 
-            // Resend
-            Obx(() {
-              final t = controller.resendTimer.value;
-              return t > 0
-                  ? Text(
-                      'Resend OTP in ${t}s',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                    )
-                  : GestureDetector(
-                      onTap: controller.resendOtp,
-                      child: Text(
-                        'Resend OTP',
-                        style: TextStyle(
-                          color: Colors.grey[700],
-                          fontSize: 14,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.grey[700],
-                        ),
-                      ),
-                    );
-            }),
+  Widget _buildSubtitle(dynamic ctrl) {
+    final mode = Get.arguments?['mode'];
+    final type = Get.arguments?['type'];
 
-            const SizedBox(height: 48),
+    if (mode == 'verify-existing') {
+      String value;
+      if (type == 'phone') {
+        final phone = Get.arguments?['phone'] ?? '';
+        final cc = Get.arguments?['countryCode'] ?? '';
+        value = cc.isNotEmpty ? '$cc-$phone' : phone;
+      } else {
+        value = Get.arguments?['email'] ?? Get.arguments?['phone'] ?? '';
+      }
+      return Text(
+        'For Security, please verify your existing account information. OTP sent to $value',
+        style: AppTextStyles.pMedium.copyWith(color: AppColors.otpSubtitle),
+        textAlign: TextAlign.center,
+      );
+    }
 
-            // Verify button
-            Obx(() => _GreenButton(
-                  label: 'Verify',
-                  isLoading: controller.isLoading.value,
-                  onPressed:
-                      controller.isLoading.value ? null : controller.verifyOtp,
-                )),
-            const SizedBox(height: 32),
+    if (mode == 'delete-account') {
+      final phone = Get.arguments?['phone'] as String? ?? '';
+      final cc = Get.arguments?['countryCode'] as String? ?? '';
+      final display = cc.isNotEmpty ? '$cc-$phone' : phone;
+      return Text(
+        '${AppStrings.otpSentTo}$display',
+        style: AppTextStyles.pMedium.copyWith(color: AppColors.otpSubtitle),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    if (mode == 'verify-new') {
+      String value;
+      if (type == 'phone') {
+        final phone = Get.arguments?['phone'] ?? '';
+        final cc = Get.arguments?['countryCode'] ?? '';
+        value = cc.isNotEmpty ? '$cc-$phone' : phone;
+      } else {
+        value = Get.arguments?['email'] ?? Get.arguments?['phone'] ?? '';
+      }
+      return Text(
+        'We have sent a verification code to $value',
+        style: AppTextStyles.pMedium.copyWith(color: AppColors.otpSubtitle),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    if (type == 'email') {
+      final email = Get.arguments?['email'] ?? ctrl.phone;
+      return Text(
+        '${AppStrings.otpSentTo}$email',
+        style: AppTextStyles.pMedium.copyWith(color: AppColors.otpSubtitle),
+        textAlign: TextAlign.center,
+      );
+    }
+
+    final cc = ctrl.otpCountryCode;
+    final ccDigits = cc.replaceAll(RegExp(r'\D'), '');
+    final digits = ctrl.phone.replaceAll(RegExp(r'\D'), '');
+
+    String local = digits;
+    if (digits.startsWith('0')) {
+      local = digits.substring(1);
+    } else if (ccDigits.isNotEmpty && digits.startsWith(ccDigits)) {
+      local = digits.substring(ccDigits.length);
+    }
+
+    final formatted = local.length >= 10
+        ? '${local.substring(0, 4)} ${local.substring(4)}'
+        : local;
+
+    final display = formatted.isEmpty ? cc : '$cc-$formatted';
+
+    return Text(
+      '${AppStrings.otpSentTo}$display',
+      style: AppTextStyles.pMedium.copyWith(color: AppColors.otpSubtitle),
+      textAlign: TextAlign.center,
+    );
+  }
+
+  Widget _buildOtpBoxes(dynamic ctrl) {
+    return OtpInput(
+      controller: ctrl.otpController,
+      focusNode: ctrl.otpFocusNode,
+      length: AppConstants.otpLength,
+      onChanged: ctrl.onOtpChanged,
+      alignment: MainAxisAlignment.center,
+      autofocus: true,
+    );
+  }
+
+  Widget _buildResendButton(dynamic ctrl) {
+    return Obx(() {
+      final t = ctrl.resendTimer.value;
+      final active = t == 0;
+      final baseStyle = AppTextStyles.pSmallMedium;
+
+      if (active) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            ctrl.resendOtp();
+          },
+          child: Text(
+            AppStrings.resendOtp,
+            style: baseStyle.copyWith(
+              color: AppColors.primary,
+              decoration: TextDecoration.underline,
+              decorationColor: AppColors.primary,
+            ),
+          ),
+        );
+      }
+
+      return RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: baseStyle,
+          children: [
+            TextSpan(
+              text: '${AppStrings.resendOtp} ',
+              style: baseStyle.copyWith(color: AppColors.otpResendInactive),
+            ),
+            TextSpan(
+              text: '($t)',
+              style: baseStyle.copyWith(color: AppColors.phoneTitleColor),
+            ),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
-}
 
-// ─── OTP box ──────────────────────────────────────────────────────────────────
-
-class _OtpBox extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final ValueChanged<String> onChanged;
-  final bool autofocus;
-
-  const _OtpBox({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    this.autofocus = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 58,
-      height: 58,
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        autofocus: autofocus,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        style: const TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF1A1A2E),
-        ),
-        decoration: InputDecoration(
-          counterText: '',
-          contentPadding: EdgeInsets.zero,
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-            borderSide: BorderSide(color: Colors.grey[300]!),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-            borderSide: const BorderSide(color: AppColors.primary, width: 2),
-          ),
-        ),
-        onChanged: onChanged,
-      ),
-    );
-  }
-}
-
-// ─── Shared ───────────────────────────────────────────────────────────────────
-
-class _GreenButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-
-  const _GreenButton({required this.label, this.onPressed, this.isLoading = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: AppDimensions.buttonHeight,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5),
-              )
-            : Text(label,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+  Widget _buildVerifyButton(dynamic ctrl) {
+    final isVerifyExisting = Get.arguments?['mode'] == 'verify-existing';
+    return Obx(
+      () => AppButton(
+        label:  AppStrings.verifyButton,
+        isLoading: ctrl.isLoading.value,
+        onPressed: (!ctrl.isOtpComplete.value || ctrl.isLoading.value)
+            ? null
+            : ctrl.verifyOtp,
       ),
     );
   }

@@ -61,7 +61,8 @@ class AppTheme {
           toolbarHeight: AppDimensions.appBarHeight,
           systemOverlayStyle: const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
             systemNavigationBarColor: AppColors.darkBackground,
           ),
           titleTextStyle: AppTextStyles.h6.copyWith(fontSize: 18),

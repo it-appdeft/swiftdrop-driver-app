@@ -11,6 +11,9 @@ class AuthInterceptor extends Interceptor {
     final token = StorageService.to.authToken;
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
+      AppLogger.i('Auth token attached: $token');
+    } else {
+      AppLogger.i('Auth token attached: <none>');
     }
     handler.next(options);
   }

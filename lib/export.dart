@@ -11,6 +11,8 @@ export 'app/config/app_config.dart';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 export 'app/constants/app_constants.dart';
+export 'app/constants/app_strings.dart';
+export 'app/constants/api_params.dart';
 export 'app/constants/storage_keys.dart';
 
 // ─── Base ──────────────────────────────────────────────────────────────────
@@ -55,6 +57,8 @@ export 'app/middleware/notification_middleware.dart';
 // ─── Widgets ───────────────────────────────────────────────────────────────
 export 'app/widgets/app_button.dart';
 export 'app/widgets/app_text_field.dart';
+export 'app/widgets/dismiss_keyboard.dart';
+export 'app/widgets/otp_input.dart';
 export 'app/widgets/app_loader.dart';
 export 'app/widgets/connectivity_widget.dart';
 export 'app/widgets/empty_state_widget.dart';
@@ -71,6 +75,8 @@ export 'data/models/user_model.dart';
 export 'data/models/order_model.dart';
 export 'data/models/notification_model.dart';
 export 'data/models/transaction_model.dart';
+export 'data/models/register_response_model.dart';
+export 'data/models/vehicle_type_model.dart';
 
 // ─── Repositories ──────────────────────────────────────────────────────────
 export 'data/repositories/auth_repository.dart';
@@ -112,12 +118,13 @@ export 'app/modules/order_detail/views/order_detail_view.dart';
 // ─── Modules — Order History ──────────────────────────────────────────────
 export 'app/modules/order_history/bindings/order_history_binding.dart';
 export 'app/modules/order_history/controllers/order_history_controller.dart';
-export 'app/modules/order_history/views/order_history_view.dart';
+
 
 // ─── Modules — Earnings ───────────────────────────────────────────────────
 export 'app/modules/earnings/bindings/earnings_binding.dart';
 export 'app/modules/earnings/controllers/earnings_controller.dart';
 export 'app/modules/earnings/views/earnings_view.dart';
+export 'app/modules/earnings/views/payout_receipt_view.dart';
 
 // ─── Modules — Notifications ──────────────────────────────────────────────
 export 'app/modules/notifications/bindings/notifications_binding.dart';
@@ -134,3 +141,5 @@ export 'app/modules/profile/views/edit_profile_view.dart';
 export 'app/modules/settings/bindings/settings_binding.dart';
 export 'app/modules/settings/controllers/settings_controller.dart';
 export 'app/modules/settings/views/settings_view.dart';
+
+// ─── Feature Widgets ──────────────────────────────────────────────────────

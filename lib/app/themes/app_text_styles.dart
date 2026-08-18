@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/responsive.dart';
 import 'app_colors.dart';
 
 class AppTextStyles {
@@ -14,12 +15,44 @@ class AppTextStyles {
     double letterSpacing = 0,
   }) =>
       GoogleFonts.inter(
-        fontSize: size,
+        fontSize: Responsive.sp(size),
         height: height / size,
         fontWeight: weight,
         color: color,
         letterSpacing: letterSpacing,
       );
+
+  // ─── Generic Builder ───────────────────────────────────────────────────────
+  static TextStyle build({
+    required double size,
+    double? height,
+    FontWeight weight = FontWeight.w400,
+    Color color = AppColors.textPrimary,
+    String? fontFamily,
+    double letterSpacing = 0,
+    FontStyle? fontStyle,
+  }) {
+    final responsiveSize = Responsive.sp(size);
+    if (fontFamily == 'Helvetica Neue') {
+      return TextStyle(
+        fontFamily: fontFamily,
+        fontSize: responsiveSize,
+        fontWeight: weight,
+        color: color,
+        height: height != null ? height / size : null,
+        letterSpacing: letterSpacing,
+        fontStyle: fontStyle,
+      );
+    }
+    return GoogleFonts.inter(
+      fontSize: responsiveSize,
+      fontWeight: weight,
+      color: color,
+      height: height != null ? height / size : null,
+      letterSpacing: letterSpacing,
+      fontStyle: fontStyle,
+    );
+  }
 
   // ─── Headings ──────────────────────────────────────────────────────────────
   // H1 — 48 / 96 / w700
@@ -62,6 +95,7 @@ class AppTextStyles {
   static TextStyle get pSmall => _inter(size: 14, height: 20);
   static TextStyle get pSmallMedium => _inter(size: 14, height: 20, weight: FontWeight.w500);
   static TextStyle get pSmallSemiBold => _inter(size: 14, height: 20, weight: FontWeight.w600);
+  static TextStyle get pSmallBold => _inter(size: 14, height: 20, weight: FontWeight.w700);
 
   // P XSmall — 12 / 16
   static TextStyle get pXSmall => _inter(size: 12, height: 16);

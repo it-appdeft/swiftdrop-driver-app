@@ -59,16 +59,16 @@ class EmptyStateWidget extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: AppColors.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.15),
+                  color: AppColors.primary.withOpacity(0.15),
                 ),
               ),
               child: Icon(
                 icon,
                 size: 36,
-                color: AppColors.primary.withValues(alpha: 0.6),
+                color: AppColors.primary.withOpacity(0.6),
               ),
             ),
             const SizedBox(height: AppDimensions.sp24),
@@ -92,7 +92,6 @@ class EmptyStateWidget extends StatelessWidget {
                 label: actionLabel!,
                 onPressed: onAction,
                 isFullWidth: false,
-                size: AppButtonSize.medium,
               ),
             ],
           ],

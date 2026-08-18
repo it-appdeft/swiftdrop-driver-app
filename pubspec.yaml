@@ -31,6 +31,7 @@ dependencies:
 
   # Images
   cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
 
   # Shimmer loading
   shimmer: ^3.0.0
@@ -54,6 +55,11 @@ dependencies:
 
   # Typography — Inter font
   google_fonts: ^6.2.1
+  country_picker: ^2.0.28
+  image_cropper: ^12.2.1
+  file_picker: ^11.0.3
+  syncfusion_flutter_charts: ^34.2.4
+  dropdown_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:

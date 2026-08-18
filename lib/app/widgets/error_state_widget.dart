@@ -41,16 +41,16 @@ class ErrorStateWidget extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.08),
+                color: AppColors.error.withOpacity(0.08),
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.error.withValues(alpha: 0.15),
+                  color: AppColors.error.withOpacity(0.15),
                 ),
               ),
               child: Icon(
                 Icons.cloud_off_rounded,
                 size: 36,
-                color: AppColors.error.withValues(alpha: 0.7),
+                color: AppColors.error.withOpacity(0.7),
               ),
             ),
             const SizedBox(height: AppDimensions.sp24),
@@ -71,7 +71,6 @@ class ErrorStateWidget extends StatelessWidget {
                 label: 'Try Again',
                 onPressed: onRetry,
                 isFullWidth: false,
-                size: AppButtonSize.medium,
                 prefixIcon: const Icon(
                   Icons.refresh_rounded,
                   size: 18,
@@ -92,9 +91,9 @@ class ErrorStateWidget extends StatelessWidget {
         vertical: AppDimensions.gapMd,
       ),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
+        color: AppColors.error.withOpacity(0.08),
         borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+        border: Border.all(color: AppColors.error.withOpacity(0.2)),
       ),
       child: Row(
         children: [

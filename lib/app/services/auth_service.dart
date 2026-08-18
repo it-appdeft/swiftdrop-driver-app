@@ -39,7 +39,7 @@ class AuthService extends GetxService {
   }
 
   void logout() {
-    _storage.clearAuth();
+    _storage.clearAll();
     DioClient.reset();
     currentUser.value = null;
     AppLogger.i('User logged out');
