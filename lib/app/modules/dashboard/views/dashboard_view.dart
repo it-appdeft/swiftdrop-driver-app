@@ -14,6 +14,7 @@ import '../../../themes/app_radius.dart';
 import '../../../themes/app_text_styles.dart';
 import '../../../utils/app_utils.dart';
 import '../../../widgets/app_button.dart';
+import '../../../widgets/app_loader.dart';
 import '../../../widgets/connectivity_widget.dart';
 import '../../../widgets/order_request_card.dart';
 import '../../../widgets/status_badge.dart';
@@ -71,6 +72,45 @@ class DashboardView extends GetView<DashboardController> {
                   return _buildFloatingDeliveryBar();
                 }),
               ),
+              Obx(() {
+                if (!controller.isTogglingOnline.value) return const SizedBox.shrink();
+                return Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const AppLoader(size: 36, strokeWidth: 3, color: AppColors.primary),
+                            const SizedBox(height: 14),
+                            Text(
+                              controller.isOnline.value ? 'Going offline...' : 'Going online...',
+                              style: AppTextStyles.build(
+                                size: 14,
+                                weight: FontWeight.w600,
+                                color: AppColors.navy900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
             ],
           ),
         ),
@@ -85,10 +125,29 @@ class DashboardView extends GetView<DashboardController> {
   }
 
   Widget _buildFloatingDeliveryBar() {
+    final active = controller.currentActiveOrder.value;
+
+    String title = 'Delivery in Progress';
+    String subtitle = 'Tap to return to your live delivery route';
+
+    if (active != null) {
+      if (active.isReachedCustomer) {
+        title = 'Arrived at Customer';
+        subtitle = 'Tap to verify & complete delivery';
+      } else if (active.isPickedUp) {
+        title = 'Delivering to Customer';
+        subtitle = 'Tap to return to your live delivery route';
+      } else if (active.isReachedRestaurant) {
+        title = 'Arrived at Restaurant';
+        subtitle = 'Tap to view & confirm order pickup';
+      } else if (active.isAccepted) {
+        title = 'Heading to Restaurant';
+        subtitle = 'Tap to open live navigation route';
+      }
+    }
+
     return GestureDetector(
-      onTap: () {
-        // Navigate to active delivery if needed
-      },
+      onTap: controller.returnToActiveDelivery,
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppDimensions.paddingMd,
@@ -125,13 +184,13 @@ class DashboardView extends GetView<DashboardController> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Delivery in Progress',
+                    title,
                     style: AppTextStyles.pMediumSemiBold.copyWith(
                       color: Colors.white,
                     ),
                   ),
                   Text(
-                    'Tap to return to your live delivery route',
+                    subtitle,
                     style: AppTextStyles.pXSmall.copyWith(
                       color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w400,
@@ -594,7 +653,9 @@ class _HomeTab extends GetView<DashboardController> {
                     scale: 0.7,
                     child: Switch(
                       value: isOnline,
-                      onChanged: (_) => controller.toggleOnlineStatus(),
+                      onChanged: controller.isTogglingOnline.value
+                          ? null
+                          : (_) => controller.toggleOnlineStatus(),
                       activeTrackColor: AppColors.primary,
                       activeThumbColor: AppColors.white,
                       inactiveTrackColor: AppColors.otpSubtitle,
@@ -757,6 +818,10 @@ class _HomeTab extends GetView<DashboardController> {
 
   Widget _buildDeliveryRequestsContent() {
     return Obx(() {
+      if (controller.approvalStatus.value.toLowerCase() != 'approved') {
+        return _buildDashedStatusCard(StatusInfoType.verificationPending);
+      }
+
       if (!controller.isOnline.value) {
         return _buildDashedStatusCard(StatusInfoType.offline);
       }
@@ -781,8 +846,10 @@ class _HomeTab extends GetView<DashboardController> {
             showActions: order.isNew,
             onAccept: () => controller.acceptOrder(order.id),
             onReject: () => controller.rejectOrder(order.id),
+            onTimeout: () => controller.onOrderTimeout(order.id),
             onTap: () => Get.toNamed(AppRoutes.orderDetail, arguments: order),
-            countdownSeconds: order.isNew ? 30 : null,
+            countdownSeconds:
+                order.isNew ? controller.deliveryRequestTimeoutSeconds.value : null,
           );
         },
       );
@@ -849,7 +916,7 @@ class _HomeTab extends GetView<DashboardController> {
       ),
       child: StatusInfoCard(
         type: type,
-        height: type == StatusInfoType.onDelivery ? 200 : 260,
+        minHeight: type == StatusInfoType.onDelivery ? 180 : 220,
         onButtonPressed: type == StatusInfoType.offline
             ? () => _handleToggle(controller)
             : null,

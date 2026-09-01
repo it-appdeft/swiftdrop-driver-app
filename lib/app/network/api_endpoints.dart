@@ -1,4 +1,6 @@
-class ApiEndpoints {
+//?>?>>>>
+
+class ApiEndpoints { 
   ApiEndpoints._();
 
   // ─── Auth ────────────────────────────────────────────────────────────────
@@ -7,6 +9,8 @@ class ApiEndpoints {
   static const String registerDriver = '/auth/register/driver';
   static const String refreshToken = '/auth/refresh-token';
   static const String logout = '/auth/logout';
+  static const String broadcastingAuth = '/broadcasting/auth';
+  static const String updateFcmToken = '/auth/update-fcm-token';
 
   // ─── Vehicle Types ────────────────────────────────────────────────────────
   static const String vehicleTypes = '/vehicle-types';
@@ -22,10 +26,21 @@ class ApiEndpoints {
   static const String driverDashboard = '/driver/dashboard';
   static const String driverAvailability = '/driver/availability';
 
-  // ─── Orders ──────────────────────────────────────────────────────────────
+  // ─── Deliveries & Orders ──────────────────────────────────────────────────
   static const String deliveryRequests = '/driver/delivery-requests';
+  static const String deliveryHistory = '/driver/deliveries/history';
+  static String respondDelivery(dynamic id, String action) =>
+      '/driver/deliveries/$id/respond?action=$action';
+  static String deliveryDetail(dynamic id) =>
+      '/driver/deliveries/$id';
+  static String deliveryTracking(dynamic id) =>
+      '/driver/deliveries/$id/tracking';
+  static String updateDeliveryStatus(dynamic id) =>
+      '/driver/deliveries/$id/status';
+  static const String currentActiveDelivery =
+      '/driver/deliveries/current-active';
   static const String activeOrders = '/driver/orders/active';
-  static const String orderHistory = '/driver/orders/history';
+  static const String orderHistory = '/driver/deliveries/history';
   static String orderDetail(String id) => '/driver/orders/$id';
   static const String acceptOrder = '/driver/orders/accept';
   static const String rejectOrder = '/driver/orders/reject';

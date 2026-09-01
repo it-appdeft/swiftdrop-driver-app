@@ -47,6 +47,12 @@ class ConnectivityService extends GetxService {
     }
   }
 
+  Future<bool> checkConnection() async {
+    final results = await Connectivity().checkConnectivity();
+    _updateStatus(results);
+    return isConnected.value;
+  }
+
   String get connectionLabel {
     switch (connectionType.value) {
       case ConnectivityResult.wifi:

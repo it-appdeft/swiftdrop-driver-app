@@ -48,7 +48,20 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
     if (widget.countdownSeconds != null) _startTimer();
   }
 
+  @override
+  void didUpdateWidget(covariant OrderRequestCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.order.id != widget.order.id ||
+        oldWidget.countdownSeconds != widget.countdownSeconds) {
+      _timer?.cancel();
+      _total = widget.countdownSeconds ?? 30;
+      _remaining = _total;
+      if (widget.countdownSeconds != null) _startTimer();
+    }
+  }
+
   void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
@@ -103,6 +116,10 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
   }
 
   Widget _buildHeader() {
+    final symbol = widget.order.currency == 'GBP'
+        ? '£'
+        : (widget.order.currency == 'USD' ? '\$' : '£');
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -111,7 +128,7 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                AppUtils.formatCurrency(widget.order.earnings),
+                AppUtils.formatCurrency(widget.order.earnings, symbol: symbol),
                 style: AppTextStyles.build(
                   size: 20,
                   height: 28,
@@ -136,7 +153,7 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '#${widget.order.orderId}',
+                        widget.order.displayOrderId,
                         style: AppTextStyles.overline.copyWith(color: AppColors.white),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -154,6 +171,22 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
   }
 
   Widget _buildTimeDistBox() {
+    final miles = widget.order.distanceMiles > 0
+        ? widget.order.distanceMiles
+        : (widget.order.distanceKm > 0 ? widget.order.distanceKm * 0.621371 : 0.0);
+    final duration = widget.order.estimatedMinutes;
+
+    String timeDistText = '';
+    if (duration > 0 && miles > 0) {
+      timeDistText = '${duration}min (${miles.toStringAsFixed(1)}MI) total';
+    } else if (duration > 0) {
+      timeDistText = '${duration}min total';
+    } else if (miles > 0) {
+      timeDistText = '${miles.toStringAsFixed(1)}MI total';
+    } else {
+      timeDistText = 'Immediate';
+    }
+
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -167,7 +200,7 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
           const Icon(Icons.access_time_rounded, size: 18, color: Color(0xFFB7950B)),
           const SizedBox(width: 4),
           Text(
-            '${widget.order.estimatedMinutes}min (${widget.order.distanceKm.toStringAsFixed(1)}MI) total',
+            timeDistText,
             style: AppTextStyles.build(
               size: 11,
               weight: FontWeight.w500,
@@ -180,6 +213,16 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
   }
 
   Widget _buildLocationSection() {
+    final pickupTitle = widget.order.pickupShortAddress.isNotEmpty
+        ? widget.order.pickupShortAddress
+        : (widget.order.restaurantName?.isNotEmpty == true
+            ? widget.order.restaurantName!
+            : (widget.order.pickupAddress.isNotEmpty ? widget.order.pickupAddress : 'Pickup Location'));
+
+    final dropoffTitle = widget.order.deliveryShortAddress.isNotEmpty
+        ? widget.order.deliveryShortAddress
+        : (widget.order.deliveryAddress.isNotEmpty ? widget.order.deliveryAddress : 'Dropoff Location');
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -202,9 +245,7 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
               _buildLocationInfo(
                 label: AppStrings.pickupLabel,
                 labelColor: AppColors.primary,
-                title: widget.order.pickupShortAddress.isNotEmpty
-                    ? widget.order.pickupShortAddress
-                    : 'Pickup Location',
+                title: pickupTitle,
                 address: widget.order.pickupAddress,
               ),
               const SizedBox(height: 28),
@@ -215,9 +256,7 @@ class _OrderRequestCardState extends State<OrderRequestCard> {
                     child: _buildLocationInfo(
                       label: AppStrings.dropoffLabel,
                       labelColor: AppColors.tintBlue,
-                      title: widget.order.deliveryShortAddress.isNotEmpty
-                          ? widget.order.deliveryShortAddress
-                          : 'Dropoff Location',
+                      title: dropoffTitle,
                       address: widget.order.deliveryAddress,
                     ),
                   ),

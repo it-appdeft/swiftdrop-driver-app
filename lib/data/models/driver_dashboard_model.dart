@@ -22,22 +22,43 @@ class DriverDashboardModel {
   });
 
   factory DriverDashboardModel.fromJson(Map<String, dynamic> json) {
+    int parseInt(dynamic value, int fallback) {
+      if (value == null) return fallback;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? fallback;
+      return fallback;
+    }
+
+    bool parseBool(dynamic value, bool fallback) {
+      if (value == null) return fallback;
+      if (value is bool) return value;
+      if (value is num) return value == 1;
+      if (value is String) {
+        final lower = value.toLowerCase().trim();
+        return lower == 'true' || lower == '1' || lower == 'online';
+      }
+      return fallback;
+    }
+
     return DriverDashboardModel(
-      availability: json['availability'] as String? ?? 'offline',
-      isOnline: json['is_online'] as bool? ?? false,
-      approvalStatus: json['approval_status'] as String? ?? 'pending',
-      isSetupComplete: json['is_setup_complete'] as bool? ?? false,
-      currentLocation: json['current_location'] != null
+      availability: json['availability']?.toString() ?? 'offline',
+      isOnline: parseBool(
+        json['is_online'] ?? (json['availability'] == 'online'),
+        false,
+      ),
+      approvalStatus: json['approval_status']?.toString() ?? 'pending',
+      isSetupComplete: parseBool(json['is_setup_complete'], false),
+      currentLocation: json['current_location'] is Map<String, dynamic>
           ? LocationPoint.fromJson(
               json['current_location'] as Map<String, dynamic>)
           : null,
-      earnings: json['earnings'] != null
+      earnings: json['earnings'] is Map<String, dynamic>
           ? EarningsData.fromJson(json['earnings'] as Map<String, dynamic>)
           : null,
-      deliveriesToday: (json['deliveries_today'] as num?)?.toInt() ?? 0,
-      timeOnlineMinutes: (json['time_online_minutes'] as num?)?.toInt() ?? 0,
+      deliveriesToday: parseInt(json['deliveries_today'], 0),
+      timeOnlineMinutes: parseInt(json['time_online_minutes'], 0),
       deliveryRequestTimeoutSeconds:
-          (json['delivery_request_timeout_seconds'] as num?)?.toInt() ?? 30,
+          parseInt(json['delivery_request_timeout_seconds'], 30),
     );
   }
 
@@ -63,9 +84,16 @@ class LocationPoint {
   LocationPoint({required this.lat, required this.lng});
 
   factory LocationPoint.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return LocationPoint(
-      lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
-      lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
+      lat: parseDouble(json['lat'] ?? json['latitude']),
+      lng: parseDouble(json['lng'] ?? json['longitude']),
     );
   }
 
@@ -82,9 +110,16 @@ class EarningsData {
   EarningsData({required this.today, required this.currency});
 
   factory EarningsData.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value) ?? 0.0;
+      return 0.0;
+    }
+
     return EarningsData(
-      today: (json['today'] as num?)?.toDouble() ?? 0.0,
-      currency: json['currency'] as String? ?? 'GBP',
+      today: parseDouble(json['today'] ?? json['amount'] ?? json['earnings']),
+      currency: json['currency']?.toString() ?? 'GBP',
     );
   }
 

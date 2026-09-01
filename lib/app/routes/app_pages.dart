@@ -42,6 +42,7 @@ import '../modules/settings/bindings/legal_binding.dart';
 import '../modules/settings/views/legal_view.dart';
 import '../modules/support/bindings/support_binding.dart';
 import '../modules/support/views/support_view.dart';
+import '../modules/network_error/views/network_error_view.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -196,6 +197,10 @@ class AppPages {
       name: AppRoutes.privacyPolicy,
       page: () => const LegalView(),
       binding: LegalBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.networkError,
+      page: () => const NetworkErrorView(),
     ),
   ];
 }

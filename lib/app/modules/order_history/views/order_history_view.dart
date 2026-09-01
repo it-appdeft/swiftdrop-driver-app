@@ -2,22 +2,28 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import '../../../../export.dart';
+import '../../../../data/models/order_model.dart';
+import '../../../constants/app_strings.dart';
+import '../../../routes/app_routes.dart';
+import '../../../themes/app_colors.dart';
+import '../../../themes/app_dimensions.dart';
+import '../../../themes/app_text_styles.dart';
+import '../../../utils/app_utils.dart';
 import '../../../widgets/order_request_card.dart';
 import '../../../widgets/status_info_card.dart';
+import '../../dashboard/controllers/dashboard_controller.dart';
+import '../controllers/order_history_controller.dart';
 
 // Tab switcher reactive state — file-scoped so the widget stays stateless
 final _selectedDeliveryTab = 0.obs;
-// Mock online status for UI check
-final _isOnlineMock = true.obs;
-// Mock active delivery status
-final _isOnDeliveryMock = false.obs;
 
 class OrderHistoryView extends StatelessWidget {
   const OrderHistoryView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final dashController = Get.find<DashboardController>();
+    final historyController = Get.find<OrderHistoryController>();
     return Scaffold(
       backgroundColor: AppColors.bgWhite,
       body: SafeArea(
@@ -31,11 +37,17 @@ class OrderHistoryView extends StatelessWidget {
                 AppDimensions.paddingMd,
                 0,
               ),
-              child: _buildHeader(),
+              child: _buildHeader(dashController),
             ),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => Get.find<OrderHistoryController>().loadHistory(),
+                onRefresh: () async {
+                  await Future.wait([
+                    historyController.loadHistory(),
+                    dashController.loadDeliveryRequests(),
+                    dashController.fetchDashboardData(),
+                  ]);
+                },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(
@@ -47,13 +59,13 @@ class OrderHistoryView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildStatsRow(),
+                      _buildStatsRow(dashController),
                       const SizedBox(height: AppDimensions.gapLg),
-                      _buildTabSwitcher(),
+                      _buildTabSwitcher(dashController, historyController),
                       const SizedBox(height: AppDimensions.gapLg),
                       Obx(() => _selectedDeliveryTab.value == 0
-                          ? _buildAvailableSection()
-                          : _buildHistorySection()),
+                          ? _buildAvailableSection(dashController)
+                          : _buildHistorySection(historyController)),
                     ],
                   ),
                 ),
@@ -65,7 +77,7 @@ class OrderHistoryView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(DashboardController controller) {
     return Row(
       children: [
         Expanded(
@@ -79,67 +91,88 @@ class OrderHistoryView extends StatelessWidget {
             ),
           ),
         ),
-        Obx(() => Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppDimensions.paddingSm,
-            vertical: AppDimensions.paddingXs,
-          ),
-          decoration: BoxDecoration(
-            color: _isOnlineMock.value 
-                ? AppColors.primaryLight500.withValues(alpha: 0.5)
-                : AppColors.logoutBg,
-            border: Border.all(color: _isOnlineMock.value ? AppColors.primary : AppColors.otpSubtitle),
-            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: _isOnlineMock.value ? AppColors.primary : AppColors.otpSubtitle,
-                  shape: BoxShape.circle,
-                ),
+        Obx(() {
+          final isOnline = controller.isOnline.value;
+          final isToggling = controller.isTogglingOnline.value;
+          return GestureDetector(
+            onTap: isToggling ? null : () => controller.toggleOnlineStatus(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimensions.paddingSm,
+                vertical: AppDimensions.paddingXs,
               ),
-              const SizedBox(width: AppDimensions.gapSm),
-              Text(
-                _isOnlineMock.value ? AppStrings.online : AppStrings.offline,
-                style: AppTextStyles.build(
-                  size: 12,
-                  height: 16,
-                  color: _isOnlineMock.value ? AppColors.primaryDarkest : AppColors.otpSubtitle,
+              decoration: BoxDecoration(
+                color: isOnline
+                    ? AppColors.primaryLight500.withValues(alpha: 0.5)
+                    : AppColors.logoutBg,
+                border: Border.all(
+                  color: isOnline ? AppColors.primary : AppColors.otpSubtitle,
                 ),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
               ),
-            ],
-          ),
-        )),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: isOnline ? AppColors.primary : AppColors.otpSubtitle,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: AppDimensions.gapSm),
+                  Text(
+                    isOnline ? AppStrings.online : AppStrings.offline,
+                    style: AppTextStyles.build(
+                      size: 12,
+                      height: 16,
+                      weight: FontWeight.w500,
+                      color: isOnline ? AppColors.primaryDarkest : AppColors.otpSubtitle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
       ],
     );
   }
 
-  Widget _buildStatsRow() {
-    return Row(
-      children: [
-        _StatCard(
-          icon: Icons.local_shipping_outlined,
-          label: AppStrings.todaysDeliveries,
-          value: '12',
-        ),
-        const SizedBox(width: AppDimensions.gapLg),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.access_time_outlined,
-            label: AppStrings.timeOnline,
-            value: '1h 00m',
-            isExpanded: true,
+  Widget _buildStatsRow(DashboardController controller) {
+    return Obx(() {
+      final deliveriesCount = controller.totalDeliveries.value > 0
+          ? '${controller.totalDeliveries.value}'
+          : '${controller.user?.totalDeliveries ?? 0}';
+
+      final minutes = controller.timeOnlineMinutes.value;
+      final timeFormatted = minutes > 0
+          ? '${minutes ~/ 60}h ${(minutes % 60).toString().padLeft(2, '0')}m'
+          : '0m';
+
+      return Row(
+        children: [
+          _StatCard(
+            icon: Icons.local_shipping_outlined,
+            label: AppStrings.todaysDeliveries,
+            value: deliveriesCount,
           ),
-        ),
-      ],
-    );
+          const SizedBox(width: AppDimensions.gapLg),
+          Expanded(
+            child: _StatCard(
+              icon: Icons.access_time_outlined,
+              label: AppStrings.timeOnline,
+              value: timeFormatted,
+              isExpanded: true,
+            ),
+          ),
+        ],
+      );
+    });
   }
 
-  Widget _buildTabSwitcher() {
+  Widget _buildTabSwitcher(DashboardController controller, OrderHistoryController historyController) {
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingXs),
       decoration: BoxDecoration(
@@ -153,7 +186,12 @@ class OrderHistoryView extends StatelessWidget {
               child: _TabItem(
                 label: AppStrings.available,
                 isSelected: _selectedDeliveryTab.value == 0,
-                onTap: () => _selectedDeliveryTab.value = 0,
+                onTap: () {
+                  _selectedDeliveryTab.value = 0;
+                  if (controller.approvalStatus.value.toLowerCase() == 'approved' && controller.isOnline.value) {
+                    controller.loadDeliveryRequests();
+                  }
+                },
               ),
             ),
             const SizedBox(width: AppDimensions.gapSm),
@@ -161,7 +199,10 @@ class OrderHistoryView extends StatelessWidget {
               child: _TabItem(
                 label: AppStrings.history,
                 isSelected: _selectedDeliveryTab.value == 1,
-                onTap: () => _selectedDeliveryTab.value = 1,
+                onTap: () {
+                  _selectedDeliveryTab.value = 1;
+                  historyController.loadHistory();
+                },
               ),
             ),
           ],
@@ -170,168 +211,137 @@ class OrderHistoryView extends StatelessWidget {
     );
   }
 
-  Widget _buildAvailableSection() {
-    final controller = Get.find<DashboardController>();
+  Widget _buildAvailableSection(DashboardController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader(AppStrings.availableOpportunities),
+        Obx(() {
+          final count = controller.activeOrders.length;
+          final showBadge = controller.isOnline.value &&
+              !controller.isOnDelivery.value &&
+              count > 0;
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                AppStrings.availableOpportunities,
+                style: AppTextStyles.build(
+                  size: 18,
+                  height: 28,
+                  weight: FontWeight.w500,
+                  color: AppColors.navy900,
+                ),
+              ),
+              if (showBadge)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.navy900,
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusXs),
+                  ),
+                  child: Text(
+                    '$count ${AppStrings.newBadge}',
+                    style: AppTextStyles.build(
+                      size: 12,
+                      height: 16,
+                      weight: FontWeight.w600,
+                      color: AppColors.infoBoxBg,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }),
         const SizedBox(height: AppDimensions.gapLg),
         Obx(() {
           if (!controller.isOnline.value) {
-            return _buildDashedStatusCard(StatusInfoType.offline);
+            return _buildDashedStatusCard(
+              StatusInfoType.offline,
+              onButtonPressed: () => controller.toggleOnlineStatus(),
+            );
           }
           if (controller.isOnDelivery.value) {
-            return _buildDashedStatusCard(StatusInfoType.onDelivery);
+            return _buildDashedStatusCard(
+              StatusInfoType.onDelivery,
+              onButtonPressed: () {
+                if (controller.currentActiveOrder.value != null) {
+                  Get.toNamed(
+                    AppRoutes.activeDelivery,
+                    arguments: controller.currentActiveOrder.value,
+                  );
+                }
+              },
+            );
           }
-          return _buildOrderCards();
+          if (controller.activeOrders.isEmpty) {
+            return _buildDashedStatusCard(StatusInfoType.waitingForDeliveries);
+          }
+          return Column(
+            children: controller.activeOrders.map((order) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppDimensions.gapLg),
+                child: OrderRequestCard(
+                  order: order,
+                  showActions: true,
+                  countdownSeconds: order.isNew
+                      ? controller.deliveryRequestTimeoutSeconds.value
+                      : null,
+                  onAccept: () => controller.acceptOrder(order.id),
+                  onReject: () => controller.rejectOrder(order.id),
+                  onTimeout: () => controller.onOrderTimeout(order.id),
+                  onTap: () => Get.toNamed(AppRoutes.orderDetail, arguments: order),
+                ),
+              );
+            }).toList(),
+          );
         }),
       ],
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: AppTextStyles.build(
-            size: 18,
-            height: 28,
-            weight: FontWeight.w500,
-            color: AppColors.navy900,
-          ),
-        ),
-        if (_selectedDeliveryTab.value == 0 && _isOnlineMock.value && !_isOnDeliveryMock.value)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.navy900,
-              borderRadius: BorderRadius.circular(AppDimensions.radiusXs),
-            ),
-            child: Text(
-              '3 ${AppStrings.newBadge}',
+  Widget _buildHistorySection(OrderHistoryController controller) {
+    return Obx(() {
+      if (controller.orders.isEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppStrings.deliveryHistory,
               style: AppTextStyles.build(
-                size: 12,
-                height: 16,
-                weight: FontWeight.w600,
-                color: AppColors.infoBoxBg,
+                size: 18,
+                height: 28,
+                weight: FontWeight.w500,
+                color: AppColors.navy900,
               ),
             ),
+            const SizedBox(height: AppDimensions.gapLg),
+            _buildDashedStatusCard(StatusInfoType.noHistory),
+          ],
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppStrings.deliveryHistory,
+            style: AppTextStyles.build(
+              size: 18,
+              height: 28,
+              weight: FontWeight.w500,
+              color: AppColors.navy900,
+            ),
           ),
-      ],
-    );
+          const SizedBox(height: AppDimensions.gapLg),
+          ...controller.orders.map((order) => Padding(
+                padding: const EdgeInsets.only(bottom: AppDimensions.gapLg),
+                child: _HistoryCard(order: order),
+              )),
+        ],
+      );
+    });
   }
 
-  Widget _buildOrderCards() {
-    // Mock data for OrderRequestCard
-    final mockOrders = [
-      OrderModel(
-        id: '1',
-        orderId: 'CON13420',
-        earnings: 16.00,
-        distanceKm: 4.2,
-        estimatedMinutes: 24,
-        pickupAddress: '742 Evergreen Terrace',
-        pickupShortAddress: 'Urban Grind Coffee House',
-        deliveryAddress: 'Grand Central Station, Gate 4',
-        deliveryShortAddress: 'Grand Central Station, Gate 4',
-        status: 'new',
-        customerName: 'Homer Simpson',
-        customerPhone: '555-0123',
-        pickupLat: 51.5074,
-        pickupLng: -0.1278,
-        deliveryLat: 51.5084,
-        deliveryLng: -0.1288,
-        createdAt: DateTime.now(),
-      ),
-      OrderModel(
-        id: '2',
-        orderId: 'CON13421',
-        earnings: 20.00,
-        distanceKm: 4.2,
-        estimatedMinutes: 24,
-        pickupAddress: '742 Evergreen Terrace',
-        pickupShortAddress: 'Urban Grind Coffee House',
-        deliveryAddress: 'Grand Central Station, Gate 4',
-        deliveryShortAddress: 'Grand Central Station, Gate 4',
-        status: 'new',
-        customerName: 'Marge Simpson',
-        customerPhone: '555-0124',
-        pickupLat: 51.5074,
-        pickupLng: -0.1278,
-        deliveryLat: 51.5084,
-        deliveryLng: -0.1288,
-        createdAt: DateTime.now(),
-      ),
-      OrderModel(
-        id: '3',
-        orderId: 'CON13422',
-        earnings: 32.00,
-        distanceKm: 8.2,
-        estimatedMinutes: 45,
-        pickupAddress: '742 Evergreen Terrace',
-        pickupShortAddress: 'Urban Grind Coffee House',
-        deliveryAddress: 'Grand Central Station, Gate 4',
-        deliveryShortAddress: 'Grand Central Station, Gate 4',
-        status: 'new',
-        customerName: 'Bart Simpson',
-        customerPhone: '555-0125',
-        pickupLat: 51.5074,
-        pickupLng: -0.1278,
-        deliveryLat: 51.5084,
-        deliveryLng: -0.1288,
-        createdAt: DateTime.now(),
-      ),
-    ];
-
-    return Column(
-      children: [
-        OrderRequestCard(
-          order: mockOrders[0],
-          countdownSeconds: 20,
-        ),
-        const SizedBox(height: AppDimensions.gapLg),
-        OrderRequestCard(
-          order: mockOrders[1],
-          countdownSeconds: 30,
-        ),
-        const SizedBox(height: AppDimensions.gapLg),
-        OrderRequestCard(
-          order: mockOrders[2],
-          countdownSeconds: 30,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHistorySection() {
-    final mockHistory = [
-      (name: 'Urban Grind Coffee House', id: 'CON13420', earnings: 16.00, info: '24min (2.2MI) total'),
-      (name: 'Sarah Cafe', id: 'CON13420', earnings: 20.00, info: '30min (3.2MI) total'),
-      (name: 'MacDonalds', id: 'CON13420', earnings: 32.00, info: '45min (6.1MI) total'),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader(AppStrings.deliveryHistory),
-        const SizedBox(height: AppDimensions.gapLg),
-        ...mockHistory.map((item) => Padding(
-              padding: const EdgeInsets.only(bottom: AppDimensions.gapLg),
-              child: _HistoryCard(
-                name: item.name,
-                deliveryId: item.id,
-                earnings: item.earnings,
-                info: item.info,
-              ),
-            )),
-      ],
-    );
-  }
-
-  Widget _buildDashedStatusCard(StatusInfoType type) {
+  Widget _buildDashedStatusCard(StatusInfoType type, {VoidCallback? onButtonPressed}) {
     return CustomPaint(
       painter: _DashedBorderPainter(
         color: AppColors.stroke,
@@ -342,10 +352,8 @@ class OrderHistoryView extends StatelessWidget {
       ),
       child: StatusInfoCard(
         type: type,
-        height: type == StatusInfoType.onDelivery ? 200 : 260,
-        onButtonPressed: type == StatusInfoType.offline
-            ? () => _isOnlineMock.value = true
-            : null,
+        minHeight: type == StatusInfoType.onDelivery ? 180 : 220,
+        onButtonPressed: onButtonPressed,
       ),
     );
   }
@@ -456,6 +464,7 @@ class _TabItem extends StatelessWidget {
             style: AppTextStyles.build(
               size: 14,
               height: 20,
+              weight: isSelected ? FontWeight.w600 : FontWeight.w400,
               color: isSelected ? AppColors.white : AppColors.navyMuted200,
             ),
           ),
@@ -471,19 +480,36 @@ class _TabItem extends StatelessWidget {
 
 class _HistoryCard extends StatelessWidget {
   const _HistoryCard({
-    required this.name,
-    required this.deliveryId,
-    required this.earnings,
-    required this.info,
+    required this.order,
   });
 
-  final String name;
-  final String deliveryId;
-  final double earnings;
-  final String info;
+  final OrderModel order;
 
   @override
   Widget build(BuildContext context) {
+    final title = order.restaurantName?.isNotEmpty == true
+        ? order.restaurantName!
+        : (order.pickupShortAddress.isNotEmpty
+            ? order.pickupShortAddress
+            : (order.pickupAddress.isNotEmpty ? order.pickupAddress : ''));
+
+    final miles = order.distanceMiles > 0
+        ? order.distanceMiles
+        : (order.distanceKm > 0 ? order.distanceKm * 0.621371 : 0.0);
+    final duration = order.estimatedMinutes;
+    final hasMetrics = duration > 0 || miles > 0;
+
+    String infoText = '';
+    if (duration > 0 && miles > 0) {
+      infoText = '${duration}min (${miles.toStringAsFixed(1)}Mi) total';
+    } else if (duration > 0) {
+      infoText = '${duration}min total';
+    } else if (miles > 0) {
+      infoText = '${miles.toStringAsFixed(1)}Mi total';
+    }
+
+    final symbol = order.currency == 'GBP' ? '£' : (order.currency == 'USD' ? '\$' : '£');
+
     return Container(
       padding: const EdgeInsets.all(AppDimensions.paddingMd),
       decoration: BoxDecoration(
@@ -493,113 +519,98 @@ class _HistoryCard extends StatelessWidget {
       child: InkWell(
         onTap: () {
           HapticFeedback.lightImpact();
-          Get.toNamed(
-            AppRoutes.orderDetail,
-            arguments: OrderModel(
-              id: deliveryId,
-              orderId: deliveryId,
-              earnings: earnings,
-              distanceKm: 2.2,
-              estimatedMinutes: 24,
-              pickupAddress: '742 Evergreen Terrace',
-              pickupShortAddress: name,
-              deliveryAddress: 'Grand Central Station, Gate 4',
-              deliveryShortAddress: 'Grand Central Station, Gate 4',
-              status: 'delivered',
-              customerName: 'Customer Name',
-              customerPhone: '555-0123',
-              pickupLat: 51.5074,
-              pickupLng: -0.1278,
-              deliveryLat: 51.5084,
-              deliveryLng: -0.1288,
-              createdAt: DateTime.now(),
-              deliveredAt: DateTime.now(),
-            ),
-          );
+          Get.toNamed(AppRoutes.orderDetail, arguments: order);
         },
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: AppTextStyles.pSmall.copyWith(
-                    color: AppColors.navy900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (title.isNotEmpty)
                     Text(
-                      AppStrings.deliveryId,
+                      title,
                       style: AppTextStyles.pSmall.copyWith(
-                        color: AppColors.navyMuted200,
+                        color: AppColors.navy900,
+                        fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: AppDimensions.gapXs),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.navyMuted200,
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                      ),
-                      child: Text(
-                        '#$deliveryId',
-                        style: AppTextStyles.build(
-                          size: 10,
-                          height: 14,
-                          color: AppColors.infoBoxBg,
+                  const SizedBox(height: 6),
+                  if (order.displayOrderId.isNotEmpty)
+                    Row(
+                      children: [
+                        Text(
+                          AppStrings.deliveryId,
+                          style: AppTextStyles.pSmall.copyWith(
+                            color: AppColors.navyMuted200,
+                          ),
                         ),
+                        const SizedBox(width: AppDimensions.gapXs),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF868AA5),
+                            borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                          ),
+                          child: Text(
+                            order.displayOrderId,
+                            style: AppTextStyles.build(
+                              size: 10,
+                              height: 14,
+                              color: AppColors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '+ ${AppUtils.formatCurrency(order.earnings, symbol: symbol)}',
+                    style: AppTextStyles.build(
+                      size: 20,
+                      height: 28,
+                      weight: FontWeight.w700,
+                      color: AppColors.primary,
+                      fontFamily: 'Helvetica Neue',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (hasMetrics) ...[
+              const SizedBox(width: AppDimensions.gapMd),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0x4DFFE083),
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 18,
+                      color: Color(0xFFB7950B),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      infoText,
+                      style: AppTextStyles.build(
+                        size: 11,
+                        weight: FontWeight.w500,
+                        color: const Color(0xFFB7950B),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '+ ${AppUtils.formatCurrency(earnings)}',
-                  style: AppTextStyles.build(
-                    size: 20,
-                    height: 28,
-                    weight: FontWeight.w700,
-                    color: AppColors.primary,
-                    fontFamily: 'Helvetica Neue',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: AppDimensions.gapMd),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0x4DFFE083),
-              borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.access_time_rounded,
-                  size: 18,
-                  color: Color(0xFFB7950B),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  info,
-                  style: AppTextStyles.build(
-                    size: 11,
-                    weight: FontWeight.w500,
-                    color: const Color(0xFFB7950B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

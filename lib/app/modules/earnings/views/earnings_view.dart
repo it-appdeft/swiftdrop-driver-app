@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
-import '../../../../data/models/transaction_model.dart';
 import '../../../../generated/assets.dart';
 import '../../../constants/app_strings.dart';
 import '../../../routes/app_routes.dart';

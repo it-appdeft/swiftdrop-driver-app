@@ -10,6 +10,8 @@ import '../../../themes/app_text_styles.dart';
 import '../../../widgets/app_button.dart';
 import '../controllers/active_delivery_controller.dart';
 
+import '../../../widgets/shimmer_widgets.dart';
+
 class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
   const ActiveDeliveryView({super.key});
 
@@ -17,16 +19,21 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          // Google Map
-          Obx(() {
-            final order = controller.order.value;
-            if (order == null) return const Center(child: CircularProgressIndicator());
+      body: Obx(() {
+        final order = controller.order.value;
+        if (order == null || order.isReachedRestaurant) {
+          return const ShimmerOrderTracking();
+        }
 
-            return GoogleMap(
+        final lat = order.pickupLat != 0.0 ? order.pickupLat : 30.7046486;
+        final lng = order.pickupLng != 0.0 ? order.pickupLng : 76.7178726;
+
+        return Stack(
+          children: [
+            // Google Map
+            GoogleMap(
               initialCameraPosition: CameraPosition(
-                target: LatLng(order.pickupLat, order.pickupLng),
+                target: LatLng(lat, lng),
                 zoom: 14,
               ),
               onMapCreated: controller.onMapCreated,
@@ -36,32 +43,34 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
               myLocationButtonEnabled: false,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
-            );
-          }),
+            ),
 
-          // Top Instruction Bar (SS1 style)
-          Obx(() => !controller.isHeadingToDropoff.value
-              ? _buildTopInstruction()
-              : const SizedBox.shrink()),
+            // Top Instruction Bar
+            _buildTopInstruction(order, controller.isHeadingToDropoff.value),
 
-          // Bottom Sheet / Card
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Obx(() {
-              final order = controller.order.value;
-              if (order == null) return const SizedBox.shrink();
-              
-              return controller.isHeadingToDropoff.value
+            // Bottom Sheet / Card
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: controller.isHeadingToDropoff.value
                   ? _buildHeadingToDropoffCard(order)
-                  : _buildHeadingToPickupCard(order);
-            }),
-          ),
-        ],
-      ),
+                  : _buildHeadingToPickupCard(order),
+            ),
+          ],
+        );
+      }),
     );
   }
 
-  Widget _buildTopInstruction() {
+  Widget _buildTopInstruction(OrderModel order, bool isHeadingToDropoff) {
+    final title = isHeadingToDropoff ? 'DELIVERING TO CUSTOMER' : 'HEADING TO RESTAURANT';
+    final targetName = isHeadingToDropoff
+        ? (order.deliveryShortAddress.isNotEmpty
+            ? order.deliveryShortAddress
+            : (order.deliveryAddress.isNotEmpty ? order.deliveryAddress : 'Customer Location'))
+        : (order.pickupShortAddress.isNotEmpty
+            ? order.pickupShortAddress
+            : (order.pickupAddress.isNotEmpty ? order.pickupAddress : 'Restaurant Location'));
+
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -69,16 +78,27 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
         decoration: BoxDecoration(
           color: AppColors.navy900,
           borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: isHeadingToDropoff ? AppColors.tintBlue : AppColors.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.turn_left, color: Colors.white, size: 24),
+              child: Icon(                                                                                             
+                isHeadingToDropoff ? Icons.navigation_rounded : Icons.storefront_rounded,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -87,23 +107,31 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'TURN LEFT IN 200M',
+                    title,
                     style: AppTextStyles.build(
-                      size: 12,
+                      size: 11,
                       weight: FontWeight.w600,
                       color: Colors.white.withOpacity(0.7),
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    'Church Street',
+                    targetName,
                     style: AppTextStyles.build(
-                      size: 18,
+                      size: 15,
                       weight: FontWeight.w600,
                       color: Colors.white,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
+            ),
+            IconButton(
+              onPressed: () => controller.openHelpCenter(),
+              icon: const Icon(Icons.help_outline_rounded, color: Colors.white, size: 24),
+              tooltip: 'Help / Support',
             ),
           ],
         ),
@@ -112,6 +140,10 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
   }
 
   Widget _buildHeadingToPickupCard(OrderModel order) {
+    final etaText = order.estimatedMinutes > 0
+        ? 'ETA ${order.estimatedMinutes} min'
+        : 'ETA 15 min';
+
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -152,17 +184,21 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Church Street to Pickup',
+                      order.pickupShortAddress.isNotEmpty
+                          ? 'En route to ${order.pickupShortAddress}'
+                          : 'Heading to Pickup',
                       style: AppTextStyles.build(
                         size: 14,
-                        weight: FontWeight.w400,
+                        weight: FontWeight.w500,
                         color: AppColors.primaryDark,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
                 Text(
-                  'ETA 4 min',
+                  etaText,
                   style: AppTextStyles.build(
                     size: 12,
                     weight: FontWeight.w400,
@@ -191,7 +227,11 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        order.pickupShortAddress.isNotEmpty ? order.pickupShortAddress : 'Urban Grind Coffee House',
+                        order.pickupShortAddress.isNotEmpty
+                            ? order.pickupShortAddress
+                            : (order.restaurantName?.isNotEmpty == true
+                                ? order.restaurantName!
+                                : 'Store Location'),
                         style: AppTextStyles.build(
                           size: 16,
                           weight: FontWeight.w600,
@@ -218,7 +258,7 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                             ),
                             alignment: Alignment.center,
                             child: Text(
-                              '#${order.orderId}',
+                              order.displayOrderId,
                               style: AppTextStyles.build(
                                 size: 9,
                                 weight: FontWeight.w600,
@@ -252,9 +292,14 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
           // Button
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            child: AppButton(
-              label: 'Reached Pickup Location',
-              onPressed: () => controller.reachedPickup(),
+            child: Obx(
+              () => AppButton(
+                label: 'Reached Pickup Location',
+                isLoading: controller.isUpdatingStatus.value,
+                onPressed: controller.isUpdatingStatus.value
+                    ? null
+                    : () => controller.reachedPickup(),
+              ),
             ),
           ),
         ],
@@ -304,17 +349,23 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Delivery Picked',
+                      order.deliveryShortAddress.isNotEmpty
+                          ? 'En route to ${order.deliveryShortAddress}'
+                          : 'Heading to Dropoff',
                       style: AppTextStyles.build(
                         size: 14,
                         weight: FontWeight.w600,
                         color: AppColors.primaryDark,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
                 Text(
-                  'ETA 4 min',
+                  order.estimatedMinutes > 0
+                      ? 'ETA ${order.estimatedMinutes} min'
+                      : 'ETA 15 min',
                   style: AppTextStyles.build(
                     size: 12,
                     weight: FontWeight.w400,
@@ -332,8 +383,14 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                 _buildRoutePoint(
                   label: 'PICKUP',
                   labelColor: AppColors.primary,
-                  address: order.pickupShortAddress.isNotEmpty ? order.pickupShortAddress : 'Urban Grind Coffee House',
-                  subAddress: order.pickupAddress,
+                  address: order.pickupShortAddress.isNotEmpty
+                      ? order.pickupShortAddress
+                      : (order.restaurantName?.isNotEmpty == true
+                          ? order.restaurantName!
+                          : 'Store Location'),
+                  subAddress: order.pickupAddress.isNotEmpty
+                      ? order.pickupAddress
+                      : (order.restaurantName ?? ''),
                   icon: Assets.images.pickupLocation.image(width: 20, height: 20),
                 ),
                 const SizedBox(height: 12),
@@ -344,7 +401,9 @@ class ActiveDeliveryView extends GetView<ActiveDeliveryController> {
                       child: _buildRoutePoint(
                         label: 'DROPOFF',
                         labelColor: AppColors.tintBlue,
-                        address: order.deliveryShortAddress.isNotEmpty ? order.deliveryShortAddress : 'Grand Central Station, Gate 4',
+                        address: order.deliveryShortAddress.isNotEmpty
+                            ? order.deliveryShortAddress
+                            : (order.deliveryAddress.isNotEmpty ? order.deliveryAddress : 'Dropoff Location'),
                         subAddress: order.deliveryAddress,
                         icon: Assets.images.dropOffLocation.image(width: 20, height: 20),
                       ),

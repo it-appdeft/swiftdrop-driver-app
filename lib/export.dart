@@ -41,6 +41,7 @@ export 'app/services/storage_service.dart';
 export 'app/services/auth_service.dart';
 export 'app/services/connectivity_service.dart';
 export 'app/services/notification_service.dart';
+export 'app/services/realtime_service.dart';
 
 // ─── Routes ────────────────────────────────────────────────────────────────
 export 'app/routes/app_routes.dart';
@@ -75,6 +76,7 @@ export 'data/models/user_model.dart';
 export 'data/models/order_model.dart';
 export 'data/models/notification_model.dart';
 export 'data/models/transaction_model.dart';
+export 'data/models/realtime_event.dart';
 export 'data/models/register_response_model.dart';
 export 'data/models/vehicle_type_model.dart';
 

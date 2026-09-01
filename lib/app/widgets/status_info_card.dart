@@ -20,6 +20,7 @@ class StatusInfoCard extends StatelessWidget {
   final VoidCallback? onButtonPressed;
   final double? width;
   final double? height;
+  final double? minHeight;
   final bool showBackground;
 
   const StatusInfoCard({
@@ -28,6 +29,7 @@ class StatusInfoCard extends StatelessWidget {
     this.onButtonPressed,
     this.width,
     this.height,
+    this.minHeight,
     this.showBackground = false,
   });
 
@@ -36,40 +38,51 @@ class StatusInfoCard extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      padding: const EdgeInsets.all(AppDimensions.paddingXl),
+      constraints: minHeight != null
+          ? BoxConstraints(minHeight: minHeight!)
+          : null,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimensions.paddingMd,
+        vertical: AppDimensions.paddingLg,
+      ),
       decoration: BoxDecoration(
         color: showBackground ? AppColors.white : Colors.transparent,
         borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildIcon(),
-          SizedBox(
-            height: type == StatusInfoType.verificationPending
-                ? AppDimensions.gapLg
-                : AppDimensions.gapMd,
+      child: Center(
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildIcon(),
+              SizedBox(
+                height: type == StatusInfoType.verificationPending
+                    ? AppDimensions.gapMd
+                    : AppDimensions.gapSm,
+              ),
+              Text(
+                _getTitle(),
+                textAlign: TextAlign.center,
+                style: _getTitleStyle(),
+              ),
+              const SizedBox(height: AppDimensions.gapXs),
+              Text(
+                _getSubtitle(),
+                textAlign: TextAlign.center,
+                style: _getSubtitleStyle(),
+              ),
+              if (_hasButton()) ...[
+                const SizedBox(height: AppDimensions.gapMd),
+                AppButton(
+                  label: _getButtonLabel(),
+                  onPressed: onButtonPressed ?? () {},
+                ),
+              ],
+            ],
           ),
-          Text(
-            _getTitle(),
-            textAlign: TextAlign.center,
-            style: _getTitleStyle(),
-          ),
-          const SizedBox(height: AppDimensions.gapXs),
-          Text(
-            _getSubtitle(),
-            textAlign: TextAlign.center,
-            style: _getSubtitleStyle(),
-          ),
-          if (_hasButton()) ...[
-            const SizedBox(height: AppDimensions.gapLg),
-            AppButton(
-              label: _getButtonLabel(),
-              onPressed: onButtonPressed ?? () {},
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -78,30 +91,30 @@ class StatusInfoCard extends StatelessWidget {
     switch (type) {
       case StatusInfoType.offline:
         return Assets.images.offline.image(
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
         );
       case StatusInfoType.verificationPending:
         return _buildCircularIcon(
           icon: Icons.access_time_rounded,
           color: AppColors.primary,
-          size: 80,
+          size: 60,
         );
       case StatusInfoType.waitingForDeliveries:
         return _buildCircularIcon(
           icon: Icons.location_searching_rounded,
           color: AppColors.primary,
-          size: 80,
+          size: 60,
         );
       case StatusInfoType.onDelivery:
         return Assets.images.deliveryHistory.image(
-          height: 48,
+          height: 44,
           fit: BoxFit.contain,
         );
       case StatusInfoType.noHistory:
         return Assets.images.deliveryHistory.image(
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
         );
     }
   }
@@ -117,7 +130,7 @@ class StatusInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: type == StatusInfoType.verificationPending
             ? const Color(0xFFC8F8DE)
-            : color.withOpacity(0.1),
+            : color.withValues(alpha: 0.1),
         shape: BoxShape.circle,
       ),
       child: Center(

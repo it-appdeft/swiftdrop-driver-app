@@ -1,24 +1,25 @@
-import 'package:flutter/material.dart';
-import '../themes/app_colors.dart';
-import '../themes/app_dimensions.dart';
-import '../themes/app_text_styles.dart';
-import 'app_button.dart';
+import 'package:swiftdrop_driver_app/export.dart';
+
+import '../modules/network_error/views/network_error_view.dart';
 
 class ErrorStateWidget extends StatelessWidget {
   final String? message;
   final VoidCallback? onRetry;
   final bool isCompact;
+  final bool isNetwork;
 
   const ErrorStateWidget({
     super.key,
     this.message,
     this.onRetry,
     this.isCompact = false,
+    this.isNetwork = false,
   });
 
   factory ErrorStateWidget.network({VoidCallback? onRetry}) => ErrorStateWidget(
         message: 'No internet connection.\nPlease check your network.',
         onRetry: onRetry,
+        isNetwork: true,
       );
 
   factory ErrorStateWidget.server({VoidCallback? onRetry}) => ErrorStateWidget(
@@ -27,8 +28,15 @@ class ErrorStateWidget extends StatelessWidget {
       );
 
   @override
-  Widget build(BuildContext context) =>
-      isCompact ? _compact() : _full();
+  Widget build(BuildContext context) {
+    if (isNetwork && !isCompact) {
+      return NetworkErrorView(
+        onReload: onRetry,
+        isFullScreen: false,
+      );
+    }
+    return isCompact ? _compact() : _full();
+  }
 
   Widget _full() {
     return Center(

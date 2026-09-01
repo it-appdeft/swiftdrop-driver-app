@@ -4,19 +4,24 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import '../../active_delivery/controllers/delivery_verification_controller.dart';
 import '../../../base/base_controller.dart';
 import '../../../constants/app_constants.dart';
+import '../../../routes/app_routes.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/location_service.dart';
+import '../../../services/realtime_service.dart';
 import '../../../services/storage_service.dart';
+import '../../../utils/app_logger.dart';
+import '../../../widgets/order_request_card.dart';
 import '../../../themes/app_colors.dart';
-import '../../../themes/app_dimensions.dart';
+
 import '../../../themes/app_text_styles.dart';
 import '../../../utils/app_utils.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/status_info_card.dart';
 import '../../../../data/local/app_data.dart';
-import '../../../../data/models/driver_dashboard_model.dart';
+
 import '../../../../data/models/order_model.dart';
 import '../../../../data/models/user_model.dart';
 import '../../../../data/repositories/driver_repository.dart';
@@ -32,7 +37,14 @@ class DashboardController extends BaseController {
 
   final currentIndex = 0.obs;
 
-  void changeTab(int index) => currentIndex.value = index;
+  void changeTab(int index) {
+    currentIndex.value = index;
+    if (approvalStatus.value.toLowerCase() == 'approved' && isOnline.value) {
+      if (!isOnDelivery.value) {
+        loadDeliveryRequests();
+      }
+    }
+  }
 
   // ─── Back Press Handling & Exit Confirmation ──────────────────────────────
 
@@ -126,19 +138,22 @@ class DashboardController extends BaseController {
 
   UserModel? get user => AuthService.to.user;
 
-  final approvalStatus = 'approved'.obs; // "approved" | "pending" | "rejected"
-  final isSetupComplete = true.obs;
+  final approvalStatus = 'pending'.obs; // "approved" | "pending" | "rejected"
+  final isSetupComplete = false.obs;
   final isOnline = false.obs;
   final isOnDelivery = false.obs;
+  final currentActiveOrder = Rxn<OrderModel>();
 
   final todayEarnings = 0.0.obs;
   final totalDeliveries = 0.obs;
+  RxInt get deliveriesToday => totalDeliveries;
   final timeOnlineMinutes = 0.obs;
   final rating = 0.0.obs;
+  final deliveryRequestTimeoutSeconds = 30.obs;
 
   final currentLocationAddress = 'Fetching location...'.obs;
-  final currentLat = 0.0.obs;
-  final currentLng = 0.0.obs;
+  final currentLat = 30.7046486.obs;
+  final currentLng = 76.7178726.obs;
 
   // ─── Dashboard API Fetch ───────────────────────────────────────────────────
 
@@ -149,8 +164,12 @@ class DashboardController extends BaseController {
         final data = response.data!;
         approvalStatus.value = data.approvalStatus;
         isSetupComplete.value = data.isSetupComplete;
-        isOnline.value = data.isOnline;
-        StorageService.to.setOnlineMode(data.isOnline);
+        
+        final isApproved = data.approvalStatus.toLowerCase() == 'approved';
+        final effectiveOnline = isApproved && data.isOnline;
+        isOnline.value = effectiveOnline;
+        deliveryRequestTimeoutSeconds.value = data.deliveryRequestTimeoutSeconds;
+        StorageService.to.setOnlineMode(effectiveOnline);
 
         if (data.earnings != null) {
           todayEarnings.value = data.earnings!.today;
@@ -158,15 +177,35 @@ class DashboardController extends BaseController {
         totalDeliveries.value = data.deliveriesToday;
         timeOnlineMinutes.value = data.timeOnlineMinutes;
 
+        // Fetch current active order from GET /api/driver/deliveries/current-active only when online
+        if (data.isOnline && data.approvalStatus.toLowerCase() == 'approved') {
+          await fetchCurrentActiveDelivery();
+        } else {
+          isOnDelivery.value = false;
+          currentActiveOrder.value = null;
+        }
+
+        // ─── STATIC TEST LOCATION (Active for testing) ─────────────────────
+        currentLat.value = 30.7046486;
+        currentLng.value = 76.7178726;
+        _updateAddressFromCoordinates(30.7046486, 76.7178726);
+
+        /*
+        // ─── ACTUAL PRODUCTION LIVE LOCATION (Uncomment when ready) ────────
         if (data.currentLocation != null) {
           currentLat.value = data.currentLocation!.lat;
           currentLng.value = data.currentLocation!.lng;
           _updateAddressFromCoordinates(data.currentLocation!.lat, data.currentLocation!.lng);
         }
+        */
 
-        // Only fetch delivery requests if driver is approved and online
+        // Load delivery requests once on dashboard refresh if approved and online
         if (approvalStatus.value.toLowerCase() == 'approved' && isOnline.value) {
-          loadDeliveryRequests();
+          if (!isOnDelivery.value) {
+            loadDeliveryRequests();
+          } else {
+            activeOrders.clear();
+          }
         } else {
           activeOrders.clear();
         }
@@ -179,7 +218,11 @@ class DashboardController extends BaseController {
 
   // ─── Online Toggle with Approval Status Check ─────────────────────────────
 
+  final isTogglingOnline = false.obs;
+
   Future<void> toggleOnlineStatus() async {
+    if (isTogglingOnline.value) return;
+
     // 1. Check driver approval status first
     if (approvalStatus.value.toLowerCase() != 'approved') {
       showVerificationPendingDialog();
@@ -190,15 +233,26 @@ class DashboardController extends BaseController {
     final nextStatus = !isOnline.value;
     final availabilityString = nextStatus ? 'online' : 'offline';
 
-    await runAsync(() async {
+    isTogglingOnline.value = true;
+
+    try {
       final result = await _driverRepo.toggleAvailability(availabilityString);
       if (result.success) {
         isOnline.value = nextStatus;
         StorageService.to.setOnlineMode(nextStatus);
         if (nextStatus && approvalStatus.value.toLowerCase() == 'approved') {
-          loadDeliveryRequests();
+          await fetchCurrentActiveDelivery();
+          sendLocationUpdate(30.7046486, 76.7178726);
+          if (!isOnDelivery.value) {
+            loadDeliveryRequests();
+          } else {
+            activeOrders.clear();
+          }
         } else {
+          _shownDialogOrderIds.clear();
           activeOrders.clear();
+          isOnDelivery.value = false;
+          currentActiveOrder.value = null;
         }
         AppUtils.showSuccess(
           nextStatus ? 'You are now online' : 'You are now offline',
@@ -208,7 +262,11 @@ class DashboardController extends BaseController {
             ? result.message
             : 'Failed to update online status');
       }
-    }, showLoadingIndicator: true);
+    } catch (e) {
+      AppUtils.showError('Unable to connect. Please check your internet connection.');
+    } finally {
+      isTogglingOnline.value = false;
+    }
   }
 
   void showVerificationPendingDialog() {
@@ -232,7 +290,17 @@ class DashboardController extends BaseController {
 
   // ─── Location Access & Continuous Updates ──────────────────────────────────
 
+  Timer? _locationTimer;
+
   Future<void> refreshLocation({bool showDialog = false}) async {
+    // ─── STATIC TEST LOCATION ───
+    currentLat.value = 30.7046486;
+    currentLng.value = 76.7178726;
+    _updateAddressFromCoordinates(30.7046486, 76.7178726);
+    await sendLocationUpdate(30.7046486, 76.7178726);
+
+    /*
+    // ─── ACTUAL PRODUCTION LIVE LOCATION (Uncomment when ready) ───
     final pos = await LocationService.to.getCurrentLocation(showDialogIfDenied: showDialog);
     if (pos != null) {
       currentLat.value = pos.latitude;
@@ -240,10 +308,19 @@ class DashboardController extends BaseController {
       _updateAddressFromCoordinates(pos.latitude, pos.longitude);
       await sendLocationUpdate(pos.latitude, pos.longitude);
     }
+    */
   }
 
   Future<void> onLocationHeaderTap() async {
-    AppUtils.showInfo('Updating your live location...');
+    AppUtils.showInfo('Updating location...');
+    currentLat.value = 30.7046486;
+    currentLng.value = 76.7178726;
+    _updateAddressFromCoordinates(30.7046486, 76.7178726);
+    await sendLocationUpdate(30.7046486, 76.7178726);
+    AppUtils.showSuccess('Location updated!');
+
+    /*
+    // ─── ACTUAL PRODUCTION LIVE LOCATION (Uncomment when ready) ───
     final pos = await LocationService.to.getCurrentLocation(showDialogIfDenied: true);
     if (pos != null) {
       currentLat.value = pos.latitude;
@@ -252,18 +329,59 @@ class DashboardController extends BaseController {
       await sendLocationUpdate(pos.latitude, pos.longitude);
       AppUtils.showSuccess('Location updated!');
     }
+    */
   }
 
   Future<void> initLocationFlow() async {
+    // ─── STATIC TEST LOCATION ───
+    currentLat.value = 30.7046486;
+    currentLng.value = 76.7178726;
+    _updateAddressFromCoordinates(30.7046486, 76.7178726);
+    await sendLocationUpdate(30.7046486, 76.7178726);
+
+    /*
+    // ─── ACTUAL PRODUCTION LIVE LOCATION & STREAM (Uncomment when ready) ───
     await refreshLocation(showDialog: true);
 
-    // Subscribe to continuous location updates when position changes
     LocationService.to.startLocationUpdates((newPos) {
       currentLat.value = newPos.latitude;
       currentLng.value = newPos.longitude;
       _updateAddressFromCoordinates(newPos.latitude, newPos.longitude);
       sendLocationUpdate(newPos.latitude, newPos.longitude);
     });
+
+    if (approvalStatus.value.toLowerCase() == 'approved' && isOnline.value) {
+      _startLocationTimer();
+    }
+    */
+  }
+
+  void _startLocationTimer() {
+    /*
+    // ─── ACTUAL PRODUCTION 5-SECOND LOCATION TIMER (Uncomment when ready) ───
+    _locationTimer?.cancel();
+    _locationTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _sendPeriodicLocationUpdate(),
+    );
+    */
+  }
+
+  Future<void> _sendPeriodicLocationUpdate() async {
+    /*
+    // ─── ACTUAL PRODUCTION PERIODIC LOCATION UPDATE (Uncomment when ready) ───
+    if (approvalStatus.value.toLowerCase() != 'approved' || !isOnline.value) return;
+    try {
+      final pos = await LocationService.to.getCurrentLocation(showDialogIfDenied: false);
+      if (pos != null) {
+        currentLat.value = pos.latitude;
+        currentLng.value = pos.longitude;
+        await sendLocationUpdate(pos.latitude, pos.longitude);
+      } else if (currentLat.value != 0.0 && currentLng.value != 0.0) {
+        await sendLocationUpdate(currentLat.value, currentLng.value);
+      }
+    } catch (_) {}
+    */
   }
 
   Future<void> _updateAddressFromCoordinates(double lat, double lng) async {
@@ -314,12 +432,15 @@ class DashboardController extends BaseController {
   // ─── Active orders / Delivery Requests ─────────────────────────────────────
 
   final activeOrders = <OrderModel>[].obs;
-  Timer? _pollTimer;
+  final Set<String> _shownDialogOrderIds = <String>{};
 
   Future<void> loadDeliveryRequests() async {
-    // Only hit delivery requests endpoint when approved AND online
-    if (approvalStatus.value.toLowerCase() != 'approved' || !isOnline.value) {
-      activeOrders.clear();
+    final isApproved = approvalStatus.value.toLowerCase() == 'approved';
+    // Only hit delivery requests endpoint when approved, online, and NOT actively on delivery
+    if (!isApproved || !isOnline.value || isOnDelivery.value) {
+      if (!isOnline.value || isOnDelivery.value) {
+        activeOrders.clear();
+      }
       return;
     }
     await runAsync(() async {
@@ -327,6 +448,7 @@ class DashboardController extends BaseController {
         final result = await _repo.getDeliveryRequests();
         if (result.success && result.data != null) {
           activeOrders.value = result.data!;
+          _checkAndShowNewOrderDialog(result.data!);
         }
       } catch (_) {
         activeOrders.clear();
@@ -334,28 +456,93 @@ class DashboardController extends BaseController {
     }, showLoadingIndicator: false);
   }
 
-  void _startPolling() {
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 15),
-      (_) => _silentRefresh(),
-    );
-  }
-
-  Future<void> _silentRefresh() async {
-    if (!isConnected || isLoading.value) return;
-    if (approvalStatus.value.toLowerCase() != 'approved' || !isOnline.value) return;
+  Future<void> fetchCurrentActiveDelivery() async {
+    final isApproved = approvalStatus.value.toLowerCase() == 'approved';
+    if (!isOnline.value || !isApproved) {
+      isOnDelivery.value = false;
+      currentActiveOrder.value = null;
+      return;
+    }
     try {
-      final result = await _repo.getDeliveryRequests();
-      if (result.success && result.data != null) {
-        final currentIds = activeOrders.map((o) => o.id).toSet();
-        final newOrders = result.data!.where((o) => !currentIds.contains(o.id));
-        if (newOrders.isNotEmpty) {
-          activeOrders.addAll(newOrders);
+      final res = await _repo.getCurrentActiveDelivery();
+      if (res.success && res.data != null && res.data!.isAssignedToDriver) {
+        isOnDelivery.value = true;
+        currentActiveOrder.value = res.data;
+        activeOrders.clear();
+
+        // If the current-active response is lightweight (missing full pickup address), enrich it in background
+        if (res.data!.pickupAddress.isEmpty) {
+          try {
+            final detailRes = await _repo.getOrderDetail(res.data!.id);
+            if (detailRes.success && detailRes.data != null) {
+              currentActiveOrder.value = detailRes.data;
+            }
+          } catch (_) {}
         }
+      } else {
+        isOnDelivery.value = false;
+        currentActiveOrder.value = null;
       }
     } catch (_) {
-      // Silent fail on background refresh
+      // Silent catch on active order sync
     }
+  }
+
+  void _checkAndShowNewOrderDialog(List<OrderModel> orders) {
+    if (orders.isEmpty) {
+      _shownDialogOrderIds.clear();
+      return;
+    }
+    if (isOnDelivery.value || currentActiveOrder.value != null) return;
+
+    // Prune IDs that no longer exist in incoming orders list
+    _shownDialogOrderIds.removeWhere((id) => !orders.any((o) => o.id == id));
+
+    // Find the first brand new / unassigned order that has not been shown in popup dialog yet
+    final newOrder = orders.firstWhereOrNull(
+      (o) => o.isNew && !_shownDialogOrderIds.contains(o.id),
+    );
+    if (newOrder != null) {
+      _shownDialogOrderIds.add(newOrder.id);
+      showOrderRequestPopup(newOrder);
+    }
+  }
+
+  void showOrderRequestPopup(OrderModel order) {
+    if (Get.isDialogOpen ?? false) return;
+
+    Get.dialog(
+      Dialog(
+        alignment: Alignment.topCenter,
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 60,
+        ),
+        backgroundColor: Colors.transparent,
+        child: OrderRequestCard(
+          order: order,
+          showActions: true,
+          countdownSeconds: deliveryRequestTimeoutSeconds.value,
+          onAccept: () {
+            if (Get.isDialogOpen ?? false) Get.back();
+            acceptOrder(order.id);
+          },
+          onReject: () {
+            if (Get.isDialogOpen ?? false) Get.back();
+            rejectOrder(order.id);
+          },
+          onTimeout: () {
+            if (Get.isDialogOpen ?? false) Get.back();
+            onOrderTimeout(order.id);
+          },
+          onTap: () {
+            if (Get.isDialogOpen ?? false) Get.back();
+            Get.toNamed(AppRoutes.orderDetail, arguments: order);
+          },
+        ),
+      ),
+      barrierDismissible: true,
+    );
   }
 
   // ─── User Stats ────────────────────────────────────────────────────────────
@@ -372,28 +559,66 @@ class DashboardController extends BaseController {
   // ─── Order actions ─────────────────────────────────────────────────────────
 
   Future<void> acceptOrder(String orderId) async {
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
     await runAsync(() async {
       final result = await _repo.acceptOrder(orderId);
       if (result.success) {
         AppUtils.showSuccess(AppConstants.orderAccepted);
         final idx = activeOrders.indexWhere((o) => o.id == orderId);
+        OrderModel acceptedOrder;
         if (idx >= 0) {
-          activeOrders[idx] = activeOrders[idx].copyWith(
-            status: 'accepted',
+          acceptedOrder = activeOrders[idx].copyWith(
+            status: 'assigned',
             acceptedAt: DateTime.now(),
           );
-          Get.toNamed('/active-delivery', arguments: activeOrders[idx]);
+        } else {
+          acceptedOrder = OrderModel(
+            id: orderId,
+            orderId: orderId,
+            status: 'assigned',
+            customerName: 'Customer',
+            customerPhone: '',
+            pickupAddress: '',
+            deliveryAddress: '',
+            pickupLat: currentLat.value,
+            pickupLng: currentLng.value,
+            deliveryLat: currentLat.value,
+            deliveryLng: currentLng.value,
+            distanceKm: 0.0,
+            earnings: 0.0,
+            createdAt: DateTime.now(),
+            acceptedAt: DateTime.now(),
+          );
         }
+        // Driver is now on delivery - stop background polling, clear active requests and set busy
+        
+        activeOrders.clear();
+        _shownDialogOrderIds.add(orderId);
+        isOnDelivery.value = true;
+        currentActiveOrder.value = acceptedOrder;
+
+        // Fetch fresh active delivery state from GET /api/driver/deliveries/current-active
+        await fetchCurrentActiveDelivery();
+
+        final targetOrder = currentActiveOrder.value ?? acceptedOrder;
+        Get.toNamed(AppRoutes.activeDelivery, arguments: targetOrder);
       } else {
-        throw Exception(result.message);
+        AppUtils.showError(result.message.isNotEmpty
+            ? result.message
+            : 'Failed to accept delivery request');
       }
-    }, showLoadingIndicator: false);
+    }, showLoadingIndicator: true);
   }
 
   Future<void> rejectOrder(String orderId) async {
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
     final confirmed = await AppUtils.showConfirmDialog(
       title: 'Reject Order',
-      message: 'Are you sure you want to reject this order?',
+      message: 'Are you sure you want to reject this delivery request?',
       confirmText: 'Reject',
       isDangerous: true,
     );
@@ -403,11 +628,189 @@ class DashboardController extends BaseController {
       final result = await _repo.rejectOrder(orderId);
       if (result.success) {
         AppUtils.showInfo(AppConstants.orderRejected);
+        _shownDialogOrderIds.add(orderId);
         activeOrders.removeWhere((o) => o.id == orderId);
       } else {
-        throw Exception(result.message);
+        AppUtils.showError(result.message.isNotEmpty
+            ? result.message
+            : 'Failed to reject delivery request');
       }
-    }, showLoadingIndicator: false);
+    }, showLoadingIndicator: true);
+  }
+
+  void onOrderTimeout(String orderId) {
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+    _shownDialogOrderIds.add(orderId);
+    _repo.rejectOrder(orderId);
+    activeOrders.removeWhere((o) => o.id == orderId);
+  }
+
+  void returnToActiveDelivery() {
+    final ord = currentActiveOrder.value;
+    if (ord != null) {
+      if (ord.isReachedCustomer) {
+        Get.toNamed(AppRoutes.deliveryVerification, arguments: {
+          'order': ord,
+          'type': VerificationType.delivery,
+        });
+      } else if (ord.isPickedUp) {
+        Get.toNamed(AppRoutes.activeDelivery, arguments: ord);
+      } else if (ord.isReachedRestaurant) {
+        Get.toNamed(AppRoutes.orderPickup, arguments: ord);
+      } else {
+        Get.toNamed(AppRoutes.activeDelivery, arguments: ord);
+      }
+    } else {
+      Get.toNamed(AppRoutes.activeDelivery);
+    }
+  }
+
+  // ─── Realtime WebSocket Listeners ──────────────────────────────────────────
+
+  void _setupRealtimeListeners() {
+    if (!Get.isRegistered<RealtimeService>()) return;
+    final driverId = AuthService.to.user?.id;
+    if (driverId == null || driverId.toString().isEmpty) return;
+
+    final channelName = 'private-driver.$driverId';
+
+    // 1. New delivery request assigned to driver
+    RealtimeService.to.onEvent(channelName, 'order.delivery.request', (data) {
+      AppLogger.i('Realtime event: order.delivery.request received');
+      _handleIncomingOrderEvent(data);
+    });
+    RealtimeService.to.onEvent(channelName, 'delivery.request', (data) {
+      AppLogger.i('Realtime event: delivery.request received');
+      _handleIncomingOrderEvent(data);
+    });
+    RealtimeService.to.onEvent(channelName, 'order.assigned', (data) {
+      AppLogger.i('Realtime event: order.assigned received');
+      _handleIncomingOrderEvent(data);
+    });
+
+    // 2. Order cancelled
+    RealtimeService.to.onEvent(channelName, 'order.cancelled', (data) {
+      AppLogger.i('Realtime event: order.cancelled received');
+      isOnDelivery.value = false;
+      currentActiveOrder.value = null;
+      fetchDashboardData();
+    });
+    RealtimeService.to.onEvent(channelName, 'delivery.cancelled', (data) {
+      AppLogger.i('Realtime event: delivery.cancelled received');
+      isOnDelivery.value = false;
+      currentActiveOrder.value = null;
+      fetchDashboardData();
+    });
+
+    // 3. Order completed / delivered
+    RealtimeService.to.onEvent(channelName, 'order.completed', (data) {
+      AppLogger.i('Realtime event: order.completed received');
+      isOnDelivery.value = false;
+      currentActiveOrder.value = null;
+      fetchDashboardData();
+    });
+    RealtimeService.to.onEvent(channelName, 'delivery.completed', (data) {
+      AppLogger.i('Realtime event: delivery.completed received');
+      isOnDelivery.value = false;
+      currentActiveOrder.value = null;
+      fetchDashboardData();
+    });
+
+    // 4. Stats / earnings updated
+    RealtimeService.to.onEvent(channelName, 'dashboard.updated', (_) {
+      fetchDashboardData();
+    });
+    RealtimeService.to.onEvent(channelName, 'earnings.updated', (_) {
+      fetchDashboardData();
+    });
+
+    // 5. Realtime status updates
+    void handleLiveStatusUpdate(Map<String, dynamic> data) {
+      AppLogger.i('⚡ [Dashboard Reverb Trigger] Status updated: $data');
+      final newDeliveryStatus = (data['delivery_status'] ?? data['status'] ?? '').toString();
+      final newOrderStatus = (data['order_status'] ?? '').toString();
+      final effectiveStatus = newDeliveryStatus.isNotEmpty ? newDeliveryStatus : newOrderStatus;
+
+      if (effectiveStatus.isNotEmpty && currentActiveOrder.value != null) {
+        currentActiveOrder.value = currentActiveOrder.value!.copyWith(
+          status: effectiveStatus,
+          deliveryStatus: newDeliveryStatus.isNotEmpty ? newDeliveryStatus : currentActiveOrder.value!.deliveryStatus,
+          orderStatus: newOrderStatus.isNotEmpty ? newOrderStatus : currentActiveOrder.value!.orderStatus,
+        );
+        if (currentActiveOrder.value!.isDelivered) {
+          isOnDelivery.value = false;
+          currentActiveOrder.value = null;
+        } else {
+          isOnDelivery.value = true;
+        }
+      }
+      fetchCurrentActiveDelivery();
+      fetchDashboardData();
+    }
+
+    RealtimeService.to.onEvent(channelName, 'order.status.updated', handleLiveStatusUpdate);
+    RealtimeService.to.onEvent(channelName, 'delivery.status.updated', handleLiveStatusUpdate);
+    RealtimeService.to.onEvent(channelName, 'order.status_updated', handleLiveStatusUpdate);
+    RealtimeService.to.onEvent(channelName, 'delivery.status_updated', handleLiveStatusUpdate);
+    RealtimeService.to.onEvent(channelName, 'delivery.tracking.updated', handleLiveStatusUpdate);
+  }
+
+  void _handleIncomingOrderEvent(Map<String, dynamic> data) {
+    AppLogger.i('Handling incoming order event: $data');
+    try {
+      Map<String, dynamic>? rawOrderMap;
+      if (data.containsKey('order') && data['order'] is Map<String, dynamic>) {
+        rawOrderMap = data['order'] as Map<String, dynamic>;
+      } else if (data.containsKey('data') && data['data'] is Map<String, dynamic>) {
+        rawOrderMap = data['data'] as Map<String, dynamic>;
+      } else if (data.containsKey('id') || data.containsKey('order_uuid') || data.containsKey('delivery_id')) {
+        rawOrderMap = data;
+      }
+
+      if (rawOrderMap != null) {
+        final orderObj = OrderModel.fromJson(rawOrderMap);
+        if (isOnline.value && !isOnDelivery.value && currentActiveOrder.value == null) {
+          // Add to active orders list if not already present
+          final exists = activeOrders.any((o) => o.id == orderObj.id);
+          if (!exists) {
+            activeOrders.insert(0, orderObj);
+          }
+          if (!_shownDialogOrderIds.contains(orderObj.id)) {
+            _shownDialogOrderIds.add(orderObj.id);
+            showOrderRequestPopup(orderObj);
+          }
+          return;
+        }
+      }
+      loadDeliveryRequests();
+    } catch (e) {
+      AppLogger.w('Failed to parse incoming order event: $e');
+      loadDeliveryRequests();
+    }
+  }
+
+  void _removeRealtimeListeners() {
+    if (!Get.isRegistered<RealtimeService>()) return;
+    final driverId = AuthService.to.user?.id;
+    if (driverId == null) return;
+    final channelName = 'private-driver.$driverId';
+
+    RealtimeService.to.removeEventHandler(channelName, 'order.delivery.request');
+    RealtimeService.to.removeEventHandler(channelName, 'delivery.request');
+    RealtimeService.to.removeEventHandler(channelName, 'order.assigned');
+    RealtimeService.to.removeEventHandler(channelName, 'order.cancelled');
+    RealtimeService.to.removeEventHandler(channelName, 'delivery.cancelled');
+    RealtimeService.to.removeEventHandler(channelName, 'order.completed');
+    RealtimeService.to.removeEventHandler(channelName, 'delivery.completed');
+    RealtimeService.to.removeEventHandler(channelName, 'dashboard.updated');
+    RealtimeService.to.removeEventHandler(channelName, 'earnings.updated');
+    RealtimeService.to.removeEventHandler(channelName, 'order.status.updated');
+    RealtimeService.to.removeEventHandler(channelName, 'delivery.status.updated');
+    RealtimeService.to.removeEventHandler(channelName, 'order.status_updated');
+    RealtimeService.to.removeEventHandler(channelName, 'delivery.status_updated');
+    RealtimeService.to.removeEventHandler(channelName, 'delivery.tracking.updated');
   }
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────────
@@ -415,17 +818,21 @@ class DashboardController extends BaseController {
   @override
   void onInit() {
     super.onInit();
-    isOnline.value = StorageService.to.isOnlineMode;
+    final userApproval = AuthService.to.user?.approvalStatus ?? 'pending';
+    approvalStatus.value = userApproval;
+    final isApproved = userApproval.toLowerCase() == 'approved';
+    isOnline.value = isApproved ? StorageService.to.isOnlineMode : false;
     isOnDelivery.value = false;
     _loadUserStats();
     fetchDashboardData();
     initLocationFlow();
-    _startPolling();
+    _setupRealtimeListeners();
   }
 
   @override
   void onClose() {
-    _pollTimer?.cancel();
+    _removeRealtimeListeners();
+    _locationTimer?.cancel();
     LocationService.to.stopLocationUpdates();
     super.onClose();
   }

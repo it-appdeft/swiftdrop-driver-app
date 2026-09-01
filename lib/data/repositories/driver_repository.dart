@@ -17,17 +17,17 @@ class DriverRepository extends BaseApiService {
 
   /// Toggle online / offline status
   /// availability: "online" | "offline"
-  Future<ApiResponse<Map<String, dynamic>>> toggleAvailability(
-      String availability) async {
+  Future<ApiResponse<dynamic>> toggleAvailability(String availability) async {
     final response = await postRequest(
       ApiEndpoints.driverAvailability,
       data: {
         'availability': availability,
       },
+      forceMultipart: true,
     );
     return ApiResponse.fromJson(
       response.data as Map<String, dynamic>,
-      (data) => (data as Map?)?.cast<String, dynamic>() ?? {},
+      (data) => data,
     );
   }
 
@@ -42,10 +42,11 @@ class DriverRepository extends BaseApiService {
         'lat': lat.toString(),
         'lng': lng.toString(),
       },
+      forceMultipart: true,
     );
     return ApiResponse.fromJson(
       response.data as Map<String, dynamic>,
-      (data) => (data as Map?)?.cast<String, dynamic>() ?? {},
+      (data) => (data is Map) ? data.cast<String, dynamic>() : {},
     );
   }
 

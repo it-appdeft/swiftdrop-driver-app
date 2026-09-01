@@ -1,11 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/app_config.dart';
 import '../themes/app_colors.dart';
 import '../themes/app_text_styles.dart';
 
 class AppUtils {
   AppUtils._();
+
+  static String? getImageUrl(String? path) {
+    if (path == null || path.isEmpty) return null;
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    final base = AppConfig.imageUrl.replaceAll(RegExp(r'/+$'), '');
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$base$cleanPath';
+  }
+
+  static Future<void> makePhoneCall(String phoneNumber) async {
+    final cleanPhone = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
+    if (cleanPhone.isEmpty) {
+      showWarning('Phone number not available');
+      return;
+    }
+    final Uri uri = Uri.parse('tel:$cleanPhone');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {
+      showError('Could not launch dialer for $cleanPhone');
+    }
+  }
 
   // ─── Snackbars ─────────────────────────────────────────────────────────────
 

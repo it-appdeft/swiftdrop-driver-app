@@ -60,7 +60,7 @@ class OrderHistoryController extends BaseController {
   void _applyFilter() {
     switch (selectedFilter.value) {
       case 'completed':
-        orders.assignAll(_allOrders.where((o) => o.isDelivered));
+        orders.assignAll(_allOrders.where((o) => o.isDelivered || o.deliveredAt != null));
       case 'cancelled':
         orders.assignAll(_allOrders.where((o) => o.isCancelled));
       default:

@@ -262,6 +262,24 @@ class AuthRepository extends BaseApiService {
     );
   }
 
+  // ─── Update FCM Token ─────────────────────────────────────────────────────
+  Future<ApiResponse<void>> updateFcmToken(String fcmToken) async {
+    try {
+      final response = await postRequest(
+        ApiEndpoints.updateFcmToken,
+        data: {'fcm_token': fcmToken},
+        forceMultipart: true,
+      );
+      final json = response.data as Map<String, dynamic>;
+      return ApiResponse<void>(
+        success: json['success'] as bool? ?? true,
+        message: json['message'] as String? ?? 'FCM token updated successfully.',
+      );
+    } catch (e) {
+      return ApiResponse<void>(success: false, message: e.toString());
+    }
+  }
+
   // ─── Logout ───────────────────────────────────────────────────────────────
   Future<void> logout() async {
     try {

@@ -26,4 +26,5 @@ abstract class AppRoutes {
   static const payoutReceipt = '/payout-receipt';
   static const termsAndConditions = '/terms-and-conditions';
   static const privacyPolicy = '/privacy-policy';
+  static const networkError = '/network-error';
 }

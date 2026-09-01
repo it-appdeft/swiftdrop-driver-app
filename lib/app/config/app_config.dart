@@ -13,4 +13,13 @@ class AppConfig {
   static bool get isDebug => dotenv.env['IS_DEBUG'] == 'true';
   static int get apiTimeout =>
       int.tryParse(dotenv.env['API_TIMEOUT'] ?? '30') ?? 30;
+
+  // ─── Reverb (WebSocket) ──────────────────────────────────────────────────
+  static String get reverbAppId => dotenv.env['REVERB_APP_ID'] ?? '';
+  static String get reverbAppKey => dotenv.env['REVERB_APP_KEY'] ?? '';
+  static String get reverbAppSecret => dotenv.env['REVERB_APP_SECRET'] ?? '';
+  static String get reverbHost => dotenv.env['REVERB_HOST'] ?? '';
+  static int get reverbPort =>
+      int.tryParse(dotenv.env['REVERB_PORT'] ?? '8080') ?? 8080;
+  static String get reverbScheme => dotenv.env['REVERB_SCHEME'] ?? 'http';
 }

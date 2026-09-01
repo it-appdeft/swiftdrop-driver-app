@@ -1,9 +1,9 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import 'firebase_options.dart';
 import 'export.dart';
 
 Future<void> main() async {
@@ -15,10 +15,15 @@ Future<void> main() async {
   // Local storage
   await GetStorage.init();
 
-  // Firebase — skipped gracefully if google-services.json is not yet configured
+  // Firebase Initialization with DefaultFirebaseOptions
   try {
-    await Firebase.initializeApp();
-  } catch (_) {}
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    AppLogger.i('Firebase initialized successfully with DefaultFirebaseOptions');
+  } catch (e) {
+    AppLogger.e('Firebase init error: ');
+  }
 
   // Lock to portrait
   await SystemChrome.setPreferredOrientations([

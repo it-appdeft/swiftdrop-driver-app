@@ -84,6 +84,12 @@ class DeliveryVerificationView extends GetView<DeliveryVerificationController> {
 
   Widget _buildHeaderCard(OrderModel order) {
     final isPickup = controller.type.value == VerificationType.pickup;
+    final earningsText = AppUtils.formatCurrency(order.earnings > 0 ? order.earnings : 16.00);
+    final itemsCountText = '${order.items.isNotEmpty ? order.items.length : 2} Items';
+    final itemsSummaryText = order.items.isNotEmpty
+        ? order.items.map((i) => '${i.quantity}x ${i.name}').join(', ')
+        : '1x latte, 1x Croissant';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -95,74 +101,71 @@ class DeliveryVerificationView extends GetView<DeliveryVerificationController> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: isPickup
-                    ? Text(
-                        order.pickupShortAddress.isNotEmpty ? order.pickupShortAddress : 'Urban Grind Coffee House',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isPickup
+                        ? (order.pickupShortAddress.isNotEmpty ? order.pickupShortAddress : 'Urban Grind Coffee House')
+                        : earningsText,
+                    style: AppTextStyles.build(
+                      size: isPickup ? 18 : 24,
+                      weight: FontWeight.w700,
+                      color: AppColors.navy900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        'Delivery ID',
                         style: AppTextStyles.build(
-                          size: 18,
-                          weight: FontWeight.w600,
-                          color: AppColors.navy900,
-                        ),
-                      )
-                    : Text(
-                        AppUtils.formatCurrency(order.earnings),
-                        style: AppTextStyles.build(
-                          size: 24,
-                          weight: FontWeight.w700,
-                          fontFamily: 'Helvetica Neue',
-                          color: AppColors.navy900,
+                          size: 12,
+                          color: AppColors.otpSubtitle,
                         ),
                       ),
-              ),
-              _buildBadge('${order.items.length} Items'),
-            ],
-          ),
-          const SizedBox(height: 4),
-          if (isPickup)
-            Text(
-              order.pickupAddress,
-              style: AppTextStyles.build(
-                size: 13,
-                color: AppColors.otpSubtitle,
-              ),
-            ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                'Delivery ID',
-                style: AppTextStyles.build(
-                  size: 12,
-                  color: AppColors.otpSubtitle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 20,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF868AA5).withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '#${order.orderId}',
-                  style: AppTextStyles.build(
-                    size: 10,
-                    weight: FontWeight.w600,
-                    color: Colors.white,
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF868AA5).withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          order.displayOrderId,
+                          style: AppTextStyles.build(
+                            size: 10,
+                            weight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
+              _buildBadge(itemsCountText),
             ],
           ),
           const SizedBox(height: 16),
-          if (isPickup)
-            ...order.items.map((item) => _buildItemRow(item))
-          else
-            _buildLocationSummary(order),
+          if (isPickup) ...[
+            if (order.pickupAddress.isNotEmpty)
+              Text(
+                order.pickupAddress,
+                style: AppTextStyles.build(
+                  size: 13,
+                  color: AppColors.otpSubtitle,
+                ),
+              ),
+            const SizedBox(height: 8),
+            if (order.items.isNotEmpty)
+              ...order.items.map((item) => _buildItemRow(item))
+            else
+              _buildLocationSummary(order, itemsSummaryText),
+          ] else
+            _buildLocationSummary(order, itemsSummaryText),
         ],
       ),
     );
@@ -215,32 +218,33 @@ class DeliveryVerificationView extends GetView<DeliveryVerificationController> {
               ),
             ),
           ),
-          Text(
-            'Large, Oat Milk',
-            style: AppTextStyles.build(
-              size: 12,
-              fontStyle: FontStyle.italic,
-              color: AppColors.otpSubtitle,
+          if (item.options != null && item.options!.isNotEmpty)
+            Text(
+              item.options!,
+              style: AppTextStyles.build(
+                size: 12,
+                fontStyle: FontStyle.italic,
+                color: AppColors.otpSubtitle,
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildLocationSummary(OrderModel order) {
+  Widget _buildLocationSummary(OrderModel order, String itemsSummaryText) {
     return Column(
       children: [
         _buildLocationRow(
           leading: Assets.images.pickupFoodImage.image(width: 20, height: 20),
           title: order.pickupShortAddress.isNotEmpty ? order.pickupShortAddress : 'Urban Grind Coffee House',
-          subtitle: '1x latte, 1x Croissant',
+          subtitle: itemsSummaryText,
         ),
         const SizedBox(height: 16),
         _buildLocationRow(
           leading: Assets.images.dropFoodLocationImage.image(width: 20, height: 20),
           title: order.deliveryShortAddress.isNotEmpty ? order.deliveryShortAddress : 'Grand Central Station, Gate 4',
-          subtitle: 'Gate 4',
+          subtitle: order.deliveryAddress.isNotEmpty ? order.deliveryAddress : 'Gate 4',
         ),
       ],
     );
@@ -431,9 +435,12 @@ class DeliveryVerificationView extends GetView<DeliveryVerificationController> {
   Widget _buildBottomButton(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 8, 16, 20 + MediaQuery.of(context).padding.bottom),
-      child: AppButton(
-        label: controller.type.value == VerificationType.pickup ? 'Confirm OTP' : 'Confirm Delivery',
-        onPressed: () => controller.confirm(),
+      child: Obx(
+        () => AppButton(
+          label: controller.type.value == VerificationType.pickup ? 'Confirm OTP' : 'Confirm Delivery',
+          isLoading: controller.isVerifying.value,
+          onPressed: controller.isVerifying.value ? null : () => controller.confirm(),
+        ),
       ),
     );
   }
